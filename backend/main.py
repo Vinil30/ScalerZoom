@@ -1,5 +1,8 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from backend.database.database import init_db
 from backend.schemas import APIHealth
@@ -29,6 +32,14 @@ def on_startup() -> None:
 @app.get("/health", response_model=APIHealth, tags=["System"])
 def health_check() -> APIHealth:
     return APIHealth(status="ok", service="AI Zoom Clone Backend", database="sqlite")
+
+
+@app.get("/join/{meeting_code}", include_in_schema=False)
+def redirect_invite_link(meeting_code: str) -> RedirectResponse:
+    frontend_base_url = os.getenv("PUBLIC_BASE_URL", "http://localhost:3000").rstrip("/")
+    if frontend_base_url.endswith(":8000"):
+        frontend_base_url = "http://localhost:3000"
+    return RedirectResponse(url=f"{frontend_base_url}/join/{meeting_code}")
 
 
 app.include_router(meeting_routes.router, prefix="/api/v1")

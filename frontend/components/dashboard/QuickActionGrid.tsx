@@ -1,53 +1,61 @@
 "use client";
 
-import { CalendarPlus, LogIn, Video } from "lucide-react";
+import { CalendarDays, Plus, Video } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/shared/Button";
 
-export function QuickActionGrid({ onNewMeeting }: { onNewMeeting: () => void }) {
+export function QuickActionGrid({
+  onNewMeeting,
+  personalMeetingId = "379 501 4625",
+}: {
+  onNewMeeting: () => void;
+  personalMeetingId?: string;
+}) {
   const actions = [
     {
-      label: "New Meeting",
-      detail: "Start an instant room",
-      icon: <Video className="h-5 w-5" aria-hidden="true" />,
-      action: <Button onClick={onNewMeeting} icon={<Video className="h-4 w-4" aria-hidden="true" />}>Start</Button>,
+      label: "Schedule",
+      href: "/schedule",
+      icon: <CalendarDays className="h-6 w-6" aria-hidden="true" />,
+      className: "bg-[#0b6ff6]",
     },
     {
-      label: "Join Meeting",
-      detail: "Use code or invite link",
-      icon: <LogIn className="h-5 w-5" aria-hidden="true" />,
-      action: (
-        <Link href="/join">
-          <Button variant="secondary" icon={<LogIn className="h-4 w-4" aria-hidden="true" />}>Join</Button>
-        </Link>
-      ),
+      label: "Join",
+      href: "/join",
+      icon: <Plus className="h-6 w-6" aria-hidden="true" />,
+      className: "bg-[#1777f2]",
     },
     {
-      label: "Schedule Meeting",
-      detail: "Plan with AI-ready notes",
-      icon: <CalendarPlus className="h-5 w-5" aria-hidden="true" />,
-      action: (
-        <Link href="/schedule">
-          <Button variant="secondary" icon={<CalendarPlus className="h-4 w-4" aria-hidden="true" />}>Schedule</Button>
-        </Link>
-      ),
+      label: "Host",
+      onClick: onNewMeeting,
+      icon: <Video className="h-6 w-6" aria-hidden="true" />,
+      className: "bg-[#ff7a2b]",
     },
   ];
 
   return (
-    <section className="grid gap-4 md:grid-cols-3">
-      {actions.map((item) => (
-        <div key={item.label} className="panel flex min-h-36 flex-col justify-between p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-base font-semibold text-slate-950">{item.label}</h2>
-              <p className="mt-1 text-sm text-slate-500">{item.detail}</p>
-            </div>
-            <span className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-zoom-blue">{item.icon}</span>
-          </div>
-          <div className="mt-5">{item.action}</div>
-        </div>
-      ))}
+    <section className="zoom-card p-8">
+      <div className="grid grid-cols-3 gap-6">
+        {actions.map((item) =>
+          item.href ? (
+            <Link key={item.label} href={item.href} className="group flex flex-col items-center gap-3">
+              <span className={`flex h-[62px] w-[62px] items-center justify-center rounded-2xl text-white shadow-sm transition group-hover:scale-105 ${item.className}`}>
+                {item.icon}
+              </span>
+              <span className="text-[15px] font-normal text-[#5b5575]">{item.label}</span>
+            </Link>
+          ) : (
+            <button key={item.label} onClick={item.onClick} className="group flex flex-col items-center gap-3">
+              <span className={`flex h-[62px] w-[62px] items-center justify-center rounded-2xl text-white shadow-sm transition group-hover:scale-105 ${item.className}`}>
+                {item.icon}
+              </span>
+              <span className="text-[15px] font-normal text-[#5b5575]">{item.label}</span>
+            </button>
+          ),
+        )}
+      </div>
+      <div className="mt-8 text-center">
+        <p className="text-[20px] font-semibold text-[#17172a]">Personal Meeting ID</p>
+        <p className="mt-2 text-lg text-[#17172a]">{personalMeetingId}</p>
+      </div>
     </section>
   );
 }

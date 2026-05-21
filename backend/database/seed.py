@@ -28,7 +28,7 @@ def create_seed_meeting(
         status=status,
     )
     expires_at = (now_utc() + timedelta(days=7)).isoformat()
-    queries.create_meeting_link(meeting_id, build_invite_link(meeting_code, "http://localhost:8000"), expires_at)
+    queries.create_meeting_link(meeting_id, build_invite_link(meeting_code, "http://localhost:3000"), expires_at)
     return meeting_id
 
 

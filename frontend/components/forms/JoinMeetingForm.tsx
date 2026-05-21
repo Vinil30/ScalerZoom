@@ -13,11 +13,11 @@ function extractMeetingCode(value: string): string {
   return (joinMatch?.[1] ?? trimmed).toUpperCase();
 }
 
-export function JoinMeetingForm() {
+export function JoinMeetingForm({ initialMeetingCode = "" }: { initialMeetingCode?: string }) {
   const router = useRouter();
   const { joinMeeting, loading, error } = useMeetingStore();
   const { pushToast } = useToastStore();
-  const [meetingInput, setMeetingInput] = useState("");
+  const [meetingInput, setMeetingInput] = useState(initialMeetingCode);
   const [displayName, setDisplayName] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -65,7 +65,7 @@ export function JoinMeetingForm() {
             id="meeting"
             className="field"
             value={meetingInput}
-            placeholder="ABC-123-4567 or http://localhost:8000/join/ABC-123-4567"
+            placeholder="ABC-123-4567 or http://localhost:3000/join/ABC-123-4567"
             onChange={(event) => setMeetingInput(event.target.value)}
           />
           {previewCode && <p className="text-xs text-slate-500">Detected code: {previewCode}</p>}

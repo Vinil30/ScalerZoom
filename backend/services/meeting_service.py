@@ -14,7 +14,7 @@ from backend.utils.validation_utils import ensure_future_datetime
 
 load_dotenv()
 
-PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000")
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:3000")
 
 
 def serialize_datetime(value: datetime | None) -> str | None:
@@ -155,6 +155,14 @@ def join_meeting(payload: JoinMeetingRequest) -> dict[str, Any]:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting code not found.")
     if meeting["status"] in {"ended", "cancelled"}:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Meeting is not joinable.")
+    link = queries.get_latest_meeting_link(meeting["id"])
+    if link and link["expires_at"]:
+        expires_at = datetime.fromisoformat(link["expires_at"])
+        current_time = now_utc()
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=current_time.tzinfo)
+        if expires_at < current_time:
+            raise HTTPException(status_code=status.HTTP_410_GONE, detail="Meeting invite link has expired.")
     if payload.user_id is not None:
         get_user_or_404(payload.user_id)
 

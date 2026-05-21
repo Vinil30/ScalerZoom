@@ -1,89 +1,147 @@
 # AI Zoom Clone
 
-A fullstack AI-powered collaboration platform inspired by Zoom Workplace.
+A portfolio-quality AI-powered collaboration platform inspired by Zoom Workplace.
 
-The project demonstrates practical backend design, polished frontend engineering, and production-minded AI integration without overbuilding media infrastructure.
+This project combines a clean FastAPI backend, normalized SQLite database, polished Next.js frontend, lightweight browser media, and AI meeting intelligence. It is intentionally designed to be interview-friendly: the architecture is modular, practical, and easy to explain without hiding core behavior behind excessive abstraction.
 
-## What It Does
+## Screenshots
 
-- Create instant meetings with generated meeting codes and invite links.
-- Join meetings by code or invite link.
-- Schedule future meetings.
-- Track participants, mic state, camera state, join time, and leave time.
-- Preview local camera and microphone in the meeting room.
-- Submit transcripts and generate AI meeting intelligence.
-- Persist AI summaries, transcripts, and action items.
-- Display dashboard metrics, upcoming meetings, recent meetings, and participant counts.
+Add final screenshots or GIFs here before publishing:
 
-## Architecture
+- `docs/screenshots/dashboard.png`
+- `docs/screenshots/meeting-room.png`
+- `docs/screenshots/ai-insights.png`
+- `docs/demo/meeting-flow.gif`
 
-```text
-frontend/
-  Next.js App Router
-  TypeScript
-  TailwindCSS
-  Zustand
-  centralized API services
+## Features
 
-backend/
-  FastAPI
-  SQLite
-  direct SQL via sqlite3
-  service-based business logic
-  OpenAI/Groq-compatible AI layer
-```
+- Instant meeting creation with generated meeting code and invite link.
+- Join by meeting code or invite link.
+- Scheduled meetings with duration and metadata.
+- Dashboard metrics, recent meetings, upcoming meetings, and participant counts.
+- Meeting room with participant grid, participant sidebar, local media preview, mic/camera toggles, and leave flow.
+- Transcript submission and persisted transcript history.
+- AI meeting summaries using OpenAI/Groq-compatible providers with local fallback.
+- AI action item extraction with owner, priority, and status.
+- Searchable transcript snippets.
+- Toast notifications, loading states, empty states, retry behavior, and request timeouts.
 
-## System Flow
+## Architecture Overview
 
 ```mermaid
 flowchart LR
-  User[User] --> UI[Next.js Frontend]
-  UI --> API[FastAPI Routes]
-  API --> Services[Service Layer]
-  Services --> SQL[SQLite Queries]
-  Services --> AI[OpenAI or Groq]
-  SQL --> DB[(SQLite)]
+  Browser["Next.js Frontend"] --> API["FastAPI API"]
+  API --> Services["Service Layer"]
+  Services --> Queries["SQL Query Helpers"]
+  Queries --> SQLite[("SQLite")]
+  Services --> AI["OpenAI / Groq / Local Fallback"]
   AI --> Services
-  Services --> UI
+  Services --> API
+  API --> Browser
 ```
 
-## Why These Decisions
+## Folder Structure
 
-- **Service-based backend:** routes stay thin and business logic stays testable.
-- **Direct SQL:** the database design is visible, readable, and easy to explain in interviews.
-- **Normalized schema:** meetings, participants, links, history, transcripts, summaries, and action items are separate because they change independently.
-- **Separate AI tables:** AI outputs are durable artifacts that can be regenerated, audited, and compared by model.
-- **Zustand:** state remains modular without the boilerplate of heavier state frameworks.
-- **Centralized API layer:** frontend workflows use consistent loading and error behavior.
-- **Transcript persistence:** summaries and action items are traceable back to source meeting content.
+```text
+backend/
+  main.py
+  schemas.py
+  routes/          # Thin FastAPI route handlers
+  services/        # Business logic and AI orchestration
+  database/        # schema.sql, queries.py, connection helpers, seed data
+  utils/           # prompts, IDs, transcript helpers, validation
 
-## AI Pipeline
+frontend/
+  app/             # Next.js App Router pages
+  components/      # Reusable UI pieces
+  features/        # Dashboard, meeting, scheduling, AI feature views
+  services/        # Centralized API clients
+  store/           # Zustand stores
+  hooks/           # Local media and app hooks
+  types/           # Shared TypeScript API types
+```
+
+## Database Design
+
+The schema is normalized around product concepts:
+
+- `users`
+- `meetings`
+- `participants`
+- `meeting_links`
+- `meeting_history`
+- `ai_transcripts`
+- `ai_meeting_summaries`
+- `ai_action_items`
+
+Why this matters:
+
+- Meeting metadata is separate from participant attendance.
+- Invite links can expire or rotate independently.
+- Historical analytics do not bloat the core meeting row.
+- AI outputs are durable artifacts and can be regenerated or compared by model.
+- The schema stays easy to migrate to PostgreSQL later.
+
+See:
+
+- `backend/database/schema.sql`
+- `backend/database/architecture.md`
+- `backend/database/relationships.md`
+
+## AI Feature Architecture
 
 ```text
 Transcript submitted
-  -> normalized by backend
-  -> stored in ai_transcripts
+  -> backend normalizes transcript
+  -> transcript stored in ai_transcripts
   -> summary generated
   -> summary stored in ai_meeting_summaries
   -> action items extracted
-  -> tasks stored in ai_action_items
-  -> frontend refreshes AI panels
+  -> action items stored in ai_action_items
+  -> frontend updates AI panels
 ```
 
-The backend supports OpenAI and Groq through provider wrappers. If provider keys are unavailable, a local deterministic fallback keeps the workflow demoable.
+Provider strategy:
 
-## Lightweight Video Foundation
+- OpenAI wrapper for OpenAI models.
+- Groq wrapper through OpenAI-compatible base URL.
+- Local deterministic fallback for demos, tests, and missing API keys.
+- Prompt templates live in `backend/utils/ai_utils.py`.
 
-This project intentionally avoids complex conferencing infrastructure. Phase 4 adds:
+## API Structure
 
-- local webcam preview
-- microphone permission handling
-- camera permission handling
-- mic and camera toggles
-- participant placeholders
-- backend participant state sync
+Meetings:
 
-Future production work could add WebRTC peer connections and WebSocket signaling.
+- `POST /api/v1/meetings`
+- `GET /api/v1/meetings`
+- `GET /api/v1/meetings/{meeting_id}`
+- `PATCH /api/v1/meetings/{meeting_id}`
+- `POST /api/v1/meetings/{meeting_id}/start`
+- `POST /api/v1/meetings/{meeting_id}/end`
+- `POST /api/v1/meetings/join`
+
+Scheduling:
+
+- `POST /api/v1/schedule`
+- `GET /api/v1/schedule/upcoming`
+- `POST /api/v1/schedule/{meeting_id}/cancel`
+
+Participants:
+
+- `GET /api/v1/participants/meeting/{meeting_id}`
+- `PATCH /api/v1/participants/{participant_id}`
+- `POST /api/v1/participants/{participant_id}/leave`
+
+AI:
+
+- `POST /api/v1/ai/transcripts`
+- `POST /api/v1/ai/transcripts/process`
+- `GET /api/v1/ai/meetings/{meeting_id}/transcripts`
+- `GET /api/v1/ai/meetings/{meeting_id}/summaries`
+- `POST /api/v1/ai/summaries/generate`
+- `GET /api/v1/ai/meetings/{meeting_id}/action-items`
+- `POST /api/v1/ai/action-items/generate`
+- `POST /api/v1/ai/action-items`
 
 ## Setup
 
@@ -108,12 +166,13 @@ Open:
 - Frontend: `http://127.0.0.1:3000`
 - Backend docs: `http://127.0.0.1:8000/docs`
 
-## Environment
+## Environment Variables
 
 Backend `.env`:
 
 ```text
-PUBLIC_BASE_URL=http://localhost:8000
+PUBLIC_BASE_URL=http://localhost:3000
+SQLITE_DB_PATH=backend/zoom_clone.db
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 GROQ_API_KEY=
@@ -127,21 +186,50 @@ Frontend `.env.local`:
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1
 ```
 
-## Deployment Notes
+## Deployment
 
-- Frontend is Vercel-ready from `frontend/`.
-- Backend can run on Render or Railway with `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`.
-- SQLite is suitable for assignment deployment; for production, migrate the same schema concepts to PostgreSQL.
+Frontend:
 
-## Future Roadmap
+- Deploy `frontend/` to Vercel.
+- Set `NEXT_PUBLIC_API_BASE_URL` to the deployed backend URL plus `/api/v1`.
 
-- WebSocket signaling for two-user WebRTC.
+Backend:
+
+- Deploy the repository to Render or Railway.
+- Build: `pip install -r backend/requirements.txt`
+- Start: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+- `render.yaml` is included as a deployment starting point.
+
+SQLite note:
+
+- SQLite is appropriate for this assignment and simple deployment.
+- For a production multi-user platform, migrate the same normalized schema to PostgreSQL.
+
+## Technical Decisions
+
+- **Direct SQL over ORM:** keeps schema and query behavior explicit and interview-friendly.
+- **Service layer:** keeps route handlers thin and business rules centralized.
+- **Zustand:** gives predictable state with minimal boilerplate.
+- **Central API layer:** adds timeout/retry behavior in one place.
+- **Separate AI tables:** keeps generated knowledge traceable and auditable.
+- **Lightweight media:** demonstrates browser media capability without pretending to be production conferencing infrastructure.
+
+## Tradeoffs and Assumptions
+
+- This is not a production SFU-based conferencing system.
+- Local camera preview is implemented; multi-user video would require WebRTC signaling.
+- AI provider calls gracefully fall back when keys are unavailable.
+- Auth is represented by a demo host ID to keep assignment scope focused.
+- SQLite is used with production-style relational design for portability.
+
+## Future Scalability Ideas
+
+- PostgreSQL migration.
+- Auth and workspace membership.
+- WebSocket signaling for WebRTC peer setup.
 - Recording upload and object storage.
-- Transcript segment table with speaker diarization.
+- Transcript segments with speaker diarization.
 - Vector search over transcript chunks.
-- Organization/workspace permissions.
+- AI prompt run audit table.
 - Calendar integrations.
-- Production auth.
-
-
-After phase-4, its ready for deployment
+- Background jobs for long-running AI processing.
