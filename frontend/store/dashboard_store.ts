@@ -13,7 +13,7 @@ interface DashboardState {
 
 export const useDashboardStore = create<DashboardState>((set) => ({
   overview: null,
-  loading: false,
+  loading: true,
   error: null,
   fetchOverview: async () => {
     set({ loading: true, error: null });
