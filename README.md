@@ -21,7 +21,6 @@ Add final screenshots or GIFs here before publishing:
 - Dashboard metrics, recent meetings, upcoming meetings, and participant counts.
 - Meeting room with participant grid, participant sidebar, local media preview, mic/camera toggles, and leave flow.
 - Transcript submission and persisted transcript history.
-- AI meeting summaries using OpenAI/Groq-compatible providers with local fallback.
 - AI action item extraction with owner, priority, and status.
 - Searchable transcript snippets.
 - Toast notifications, loading states, empty states, retry behavior, and request timeouts.
@@ -94,8 +93,6 @@ See:
 Transcript submitted
   -> backend normalizes transcript
   -> transcript stored in ai_transcripts
-  -> summary generated
-  -> summary stored in ai_meeting_summaries
   -> action items extracted
   -> action items stored in ai_action_items
   -> frontend updates AI panels
@@ -137,8 +134,6 @@ AI:
 - `POST /api/v1/ai/transcripts`
 - `POST /api/v1/ai/transcripts/process`
 - `GET /api/v1/ai/meetings/{meeting_id}/transcripts`
-- `GET /api/v1/ai/meetings/{meeting_id}/summaries`
-- `POST /api/v1/ai/summaries/generate`
 - `GET /api/v1/ai/meetings/{meeting_id}/action-items`
 - `POST /api/v1/ai/action-items/generate`
 - `POST /api/v1/ai/action-items`
@@ -168,22 +163,15 @@ Open:
 
 ## Environment Variables
 
-Backend `.env`:
+Use one `.env` file in the project root:
 
 ```text
 PUBLIC_BASE_URL=http://localhost:3000
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1
 SQLITE_DB_PATH=backend/zoom_clone.db
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4o-mini
 GROQ_API_KEY=
 GROQ_BASE_URL=https://api.groq.com/openai/v1
 GROQ_MODEL=llama-3.1-8b-instant
-```
-
-Frontend `.env.local`:
-
-```text
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1
 ```
 
 ## Deployment
@@ -218,7 +206,7 @@ SQLite note:
 
 - This is not a production SFU-based conferencing system.
 - Local camera preview is implemented; multi-user video would require WebRTC signaling.
-- AI provider calls gracefully fall back when keys are unavailable.
+- Groq AI calls gracefully fall back when keys are unavailable.
 - Auth is represented by a demo host ID to keep assignment scope focused.
 - SQLite is used with production-style relational design for portability.
 

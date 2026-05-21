@@ -145,7 +145,7 @@ export function DashboardView() {
                     <h2 className="text-[24px] font-semibold text-[#05051f]">AI workspace</h2>
                   </div>
                   <p className="mt-3 text-[16px] leading-6 text-[#62677a]">
-                    Meeting summaries, transcripts, and action items appear inside the meeting room after transcript processing.
+                    Transcripts and action items appear inside the meeting room after transcript processing.
                   </p>
                 </section>
               </aside>

@@ -8,7 +8,7 @@ import { useAIStore } from "@/store/ai_store";
 import { useToastStore } from "@/store/toast_store";
 
 const sampleTranscript =
-  "Maya opened the meeting by reviewing launch readiness and customer feedback. Arjun will prepare transcript quality metrics by Friday. Nora should confirm onboarding copy and prioritize the dashboard blockers. The team agreed to review AI summary accuracy in the next sync.";
+  "Maya opened the meeting by reviewing launch readiness and customer feedback. Arjun will prepare transcript quality metrics by Friday. Nora should confirm onboarding copy and prioritize the dashboard blockers. The team agreed to review action item accuracy in the next sync.";
 
 export function TranscriptSubmissionPanel({ meetingId }: { meetingId: number }) {
   const [transcriptText, setTranscriptText] = useState(sampleTranscript);
@@ -23,7 +23,7 @@ export function TranscriptSubmissionPanel({ meetingId }: { meetingId: number }) 
       pushToast({
         kind: "success",
         title: "AI meeting intelligence generated",
-        description: "Summary, transcript, and action items were persisted.",
+        description: "Transcript and action items were persisted.",
       });
     }
   }
@@ -43,7 +43,7 @@ export function TranscriptSubmissionPanel({ meetingId }: { meetingId: number }) 
             <FileText className="h-5 w-5 text-zoom-blue" aria-hidden="true" />
             Transcript ingestion
           </h2>
-          <p className="mt-1 text-sm text-slate-500">Submit meeting notes or capture Chrome voice notes to generate persisted AI summary and action items.</p>
+          <p className="mt-1 text-sm text-slate-500">Submit meeting notes or capture Chrome voice notes to generate persisted AI action items.</p>
         </div>
       </div>
 

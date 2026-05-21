@@ -8,8 +8,7 @@ from backend.database import queries
 from backend.schemas import ActionItemCreate, TranscriptCreate, TranscriptProcessRequest
 from backend.services.groq_service import GroqService
 from backend.services.meeting_service import get_meeting_or_404
-from backend.services.openai_service import OpenAIService
-from backend.utils.transcript_utils import extract_candidate_keywords, normalize_transcript_text
+from backend.utils.transcript_utils import normalize_transcript_text
 
 
 def create_transcript(payload: TranscriptCreate) -> dict[str, Any]:
@@ -29,16 +28,6 @@ def list_transcripts(meeting_id: int) -> list[dict[str, Any]]:
     return queries.list_transcripts(meeting_id)
 
 
-def list_summaries(meeting_id: int) -> list[dict[str, Any]]:
-    get_meeting_or_404(meeting_id)
-    return queries.list_summaries(meeting_id)
-
-
-def latest_summary(meeting_id: int) -> dict[str, Any] | None:
-    get_meeting_or_404(meeting_id)
-    return queries.get_latest_summary(meeting_id)
-
-
 def list_action_items(meeting_id: int) -> list[dict[str, Any]]:
     get_meeting_or_404(meeting_id)
     return queries.list_action_items(meeting_id)
@@ -51,32 +40,6 @@ def create_action_item(payload: ActionItemCreate) -> dict[str, Any]:
     if item is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Action item creation failed.")
     return item
-
-
-def _mock_summary(transcript_text: str) -> tuple[str, str]:
-    keywords = ", ".join(extract_candidate_keywords(transcript_text, limit=8))
-    sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+", transcript_text) if part.strip()]
-    recap = " ".join(sentences[:2]) if sentences else "The team discussed collaboration progress and next steps."
-    summary = (
-        f"Meeting recap: {recap}\n\n"
-        f"Key discussion signals: {keywords or 'planning, decisions, blockers, ownership'}.\n\n"
-        "Recommended follow-up: review owners, confirm priorities, and track open decisions before the next meeting."
-    )
-    return summary, "local-meeting-intelligence"
-
-
-def _provider_summary(provider: str, transcript_text: str) -> tuple[str, str]:
-    if provider == "openai":
-        try:
-            return OpenAIService().generate_meeting_summary(transcript_text), "openai"
-        except Exception:
-            return _mock_summary(transcript_text)
-    if provider == "groq":
-        try:
-            return GroqService().generate_meeting_summary(transcript_text), "groq-openai-compatible"
-        except Exception:
-            return _mock_summary(transcript_text)
-    return _mock_summary(transcript_text)
 
 
 def _mock_action_items(transcript_text: str) -> list[dict[str, str | None]]:
@@ -136,34 +99,12 @@ def _parse_action_items(raw_json: str, transcript_text: str) -> list[dict[str, s
 
 
 def _provider_action_items(provider: str, transcript_text: str) -> tuple[list[dict[str, str | None]], str]:
-    if provider == "openai":
-        try:
-            return _parse_action_items(OpenAIService().extract_action_items(transcript_text), transcript_text), "openai"
-        except Exception:
-            return _mock_action_items(transcript_text), "local-meeting-intelligence"
     if provider == "groq":
         try:
             return _parse_action_items(GroqService().extract_action_items(transcript_text), transcript_text), "groq-openai-compatible"
         except Exception:
             return _mock_action_items(transcript_text), "local-meeting-intelligence"
     return _mock_action_items(transcript_text), "local-meeting-intelligence"
-
-
-def generate_summary(meeting_id: int, provider: str = "mock") -> dict[str, Any]:
-    get_meeting_or_404(meeting_id)
-    transcript = queries.get_latest_transcript(meeting_id)
-    if transcript is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No transcript exists for this meeting yet.",
-        )
-
-    generated_text, model_name = _provider_summary(provider, transcript["transcript_text"])
-    summary_id = queries.create_summary(meeting_id, generated_text, model_name)
-    summary = queries.get_summary(summary_id)
-    if summary is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Summary creation failed.")
-    return summary
 
 
 def generate_action_items(meeting_id: int, provider: str = "mock") -> list[dict[str, Any]]:
@@ -200,10 +141,8 @@ def process_transcript(payload: TranscriptProcessRequest) -> dict[str, Any]:
             source_model=payload.source_model,
         )
     )
-    summary = generate_summary(payload.meeting_id, payload.provider)
     action_items = generate_action_items(payload.meeting_id, payload.provider)
     return {
         "transcript": transcript,
-        "summary": summary,
         "action_items": action_items,
     }

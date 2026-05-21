@@ -8,16 +8,6 @@ class PromptTemplate:
     user_prompt: str
 
 
-MEETING_SUMMARY_PROMPT = PromptTemplate(
-    name="meeting_summary_v1",
-    system_prompt=(
-        "You are an AI meeting analyst. Produce concise, structured meeting summaries "
-        "with decisions, risks, blockers, and action items."
-    ),
-    user_prompt="Summarize this transcript for a product collaboration meeting:\n\n{transcript}",
-)
-
-
 ACTION_ITEM_PROMPT = PromptTemplate(
     name="action_items_v1",
     system_prompt=(

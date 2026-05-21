@@ -1,4 +1,4 @@
-import { Activity, Brain, CalendarDays, Users } from "lucide-react";
+import { Activity, CalendarDays, FileText, Users } from "lucide-react";
 import type { DashboardOverview } from "@/types/api";
 
 export function MetricStrip({ overview }: { overview: DashboardOverview }) {
@@ -6,7 +6,7 @@ export function MetricStrip({ overview }: { overview: DashboardOverview }) {
     { label: "Total meetings", value: overview.total_meetings, icon: CalendarDays },
     { label: "Live now", value: overview.live_meetings, icon: Activity },
     { label: "Participants", value: overview.total_participants, icon: Users },
-    { label: "AI summaries", value: overview.total_ai_summaries, icon: Brain },
+    { label: "Transcripts", value: overview.total_transcripts, icon: FileText },
   ];
 
   return (

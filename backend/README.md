@@ -51,8 +51,9 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-copy .env.example .env
 ```
+
+Environment variables are kept in the project root `.env` file.
 
 ## Initialize Database
 
@@ -62,7 +63,7 @@ From the project root:
 python -m backend.database.seed
 ```
 
-The seed script creates users, meetings, participants, meeting history, transcripts, summaries, and action items.
+The seed script creates users, meetings, participants, meeting history, transcripts, and action items.
 
 ## Run API
 
@@ -111,8 +112,6 @@ AI:
 - `POST /api/v1/ai/transcripts`
 - `POST /api/v1/ai/transcripts/process`
 - `GET /api/v1/ai/meetings/{meeting_id}/transcripts`
-- `GET /api/v1/ai/meetings/{meeting_id}/summaries`
-- `POST /api/v1/ai/summaries/generate`
 - `GET /api/v1/ai/meetings/{meeting_id}/action-items`
 - `POST /api/v1/ai/action-items/generate`
 - `POST /api/v1/ai/action-items`
@@ -142,11 +141,10 @@ Read:
 
 The AI layer is intentionally lightweight:
 
-- `OpenAIService` wraps OpenAI chat completions.
-- `GroqService` uses the OpenAI client with Groq's base URL.
+- `GroqService` uses the OpenAI-compatible client with Groq's base URL.
 - prompt templates live in `utils/ai_utils.py`
 - transcript cleanup lives in `utils/transcript_utils.py`
 
-The frontend can already call transcript and summary endpoints, while real provider use can be enabled through `.env`.
+The frontend can already call transcript and action item endpoints, while real provider use can be enabled through `.env`.
 
-Phase 3 adds an end-to-end transcript processing endpoint. It stores the submitted transcript, generates a summary, extracts action items, and returns all persisted artifacts in one response. If OpenAI or Groq keys are configured, those providers are used; otherwise the app falls back to local meeting-intelligence heuristics so the workflow remains demoable.
+Phase 3 adds an end-to-end transcript processing endpoint. It stores the submitted transcript, extracts action items, and returns the persisted artifacts in one response. If Groq keys are configured, Groq is used through its OpenAI-compatible base URL; otherwise the app falls back to local meeting-intelligence heuristics so the workflow remains demoable.

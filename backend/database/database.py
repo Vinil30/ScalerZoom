@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = BASE_DIR.parent
-load_dotenv(BASE_DIR / ".env")
+load_dotenv(PROJECT_ROOT / ".env")
 
 DATABASE_PATH = Path(os.getenv("SQLITE_DB_PATH", str(BASE_DIR / "zoom_clone.db")))
 if not DATABASE_PATH.is_absolute():

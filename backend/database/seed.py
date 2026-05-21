@@ -150,21 +150,13 @@ def seed_database() -> None:
     transcript_text = (
         "Maya opened the meeting by reviewing latency in the recording pipeline. "
         "Arjun proposed moving transcript normalization into a background worker. "
-        "Liam will prepare observability dashboards and add alerts for failed AI summary jobs."
+        "Liam will prepare observability dashboards and add alerts for failed AI action item jobs."
     )
     queries.create_transcript(
         incident_meeting_id,
         transcript_text,
         "en",
         "seed-manual-transcript",
-    )
-    queries.create_summary(
-        incident_meeting_id,
-        (
-            "The team reviewed recording pipeline latency and agreed to separate transcript "
-            "normalization from request handling. Observability gaps were identified."
-        ),
-        "mock-summary-engine",
     )
     queries.create_action_item(
         meeting_id=incident_meeting_id,
@@ -175,7 +167,7 @@ def seed_database() -> None:
     )
     queries.create_action_item(
         meeting_id=incident_meeting_id,
-        action_text="Create dashboard alerts for failed AI summary jobs.",
+        action_text="Create dashboard alerts for failed AI action item jobs.",
         assigned_to="Liam Ops",
         priority="medium",
         status="in_progress",

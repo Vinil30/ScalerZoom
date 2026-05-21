@@ -9,7 +9,6 @@ import { MeetingControls } from "@/components/meeting/MeetingControls";
 import { ParticipantSidebar } from "@/components/meeting/ParticipantSidebar";
 import { ParticipantTile } from "@/components/meeting/ParticipantTile";
 import { AIActionItemsPanel } from "@/features/ai/AIActionItemsPanel";
-import { AISummaryPanel } from "@/features/ai/AISummaryPanel";
 import { TranscriptSubmissionPanel } from "@/features/ai/TranscriptSubmissionPanel";
 import { TranscriptInsightsPanel } from "@/features/ai/TranscriptInsightsPanel";
 import { useLocalMedia } from "@/hooks/useLocalMedia";
@@ -108,7 +107,6 @@ export function MeetingRoomView({ meetingId }: { meetingId: number | null }) {
       <section className="bg-zoom-surface text-zoom-ink">
         <div className="page-container grid gap-5 lg:grid-cols-3">
           <TranscriptSubmissionPanel meetingId={meetingId} />
-          <AISummaryPanel meetingId={meetingId} />
           <AIActionItemsPanel meetingId={meetingId} />
           <TranscriptInsightsPanel />
         </div>

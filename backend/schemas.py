@@ -131,14 +131,9 @@ class TranscriptRead(BaseModel):
     created_at: datetime
 
 
-class SummaryGenerationRequest(BaseModel):
-    meeting_id: int
-    provider: Literal["openai", "groq", "mock"] = "mock"
-
-
 class ActionItemGenerationRequest(BaseModel):
     meeting_id: int
-    provider: Literal["openai", "groq", "mock"] = "mock"
+    provider: Literal["groq", "mock"] = "mock"
 
 
 class TranscriptProcessRequest(BaseModel):
@@ -146,15 +141,7 @@ class TranscriptProcessRequest(BaseModel):
     transcript_text: str = Field(min_length=1)
     language: str = Field(default="en", min_length=2, max_length=20)
     source_model: str = Field(default="manual-upload", max_length=100)
-    provider: Literal["openai", "groq", "mock"] = "mock"
-
-
-class SummaryRead(BaseModel):
-    id: int
-    meeting_id: int
-    generated_summary: str
-    generated_by_model: str
-    created_at: datetime
+    provider: Literal["groq", "mock"] = "mock"
 
 
 class ActionItemCreate(BaseModel):
@@ -177,7 +164,6 @@ class ActionItemRead(BaseModel):
 
 class TranscriptProcessResponse(BaseModel):
     transcript: TranscriptRead
-    summary: SummaryRead
     action_items: list[ActionItemRead]
 
 

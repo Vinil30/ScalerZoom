@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import os
+from pathlib import Path
 import sqlite3
 from typing import Any
 
@@ -12,7 +13,7 @@ from backend.utils.meeting_utils import build_invite_link, new_meeting_identity,
 from backend.utils.validation_utils import ensure_future_datetime
 
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:3000")
 

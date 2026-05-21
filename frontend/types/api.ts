@@ -57,14 +57,6 @@ export interface Transcript {
   created_at: string;
 }
 
-export interface Summary {
-  id: number;
-  meeting_id: number;
-  generated_summary: string;
-  generated_by_model: string;
-  created_at: string;
-}
-
 export interface ActionItem {
   id: number;
   meeting_id: number;
@@ -98,11 +90,10 @@ export interface TranscriptProcessInput {
   transcript_text: string;
   language?: string;
   source_model?: string;
-  provider?: "mock" | "openai" | "groq";
+  provider?: "mock" | "groq";
 }
 
 export interface TranscriptProcessResponse {
   transcript: Transcript;
-  summary: Summary;
   action_items: ActionItem[];
 }

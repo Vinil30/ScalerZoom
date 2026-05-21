@@ -4,8 +4,6 @@ from backend.schemas import (
     ActionItemGenerationRequest,
     ActionItemCreate,
     ActionItemRead,
-    SummaryGenerationRequest,
-    SummaryRead,
     TranscriptCreate,
     TranscriptProcessRequest,
     TranscriptProcessResponse,
@@ -30,16 +28,6 @@ def list_transcripts(meeting_id: int) -> list[TranscriptRead]:
 @router.post("/transcripts/process", response_model=TranscriptProcessResponse, status_code=status.HTTP_201_CREATED)
 def process_transcript(payload: TranscriptProcessRequest) -> TranscriptProcessResponse:
     return transcript_service.process_transcript(payload)
-
-
-@router.get("/meetings/{meeting_id}/summaries", response_model=list[SummaryRead])
-def list_summaries(meeting_id: int) -> list[SummaryRead]:
-    return transcript_service.list_summaries(meeting_id)
-
-
-@router.post("/summaries/generate", response_model=SummaryRead, status_code=status.HTTP_201_CREATED)
-def generate_summary(payload: SummaryGenerationRequest) -> SummaryRead:
-    return transcript_service.generate_summary(payload.meeting_id, payload.provider)
 
 
 @router.get("/meetings/{meeting_id}/action-items", response_model=list[ActionItemRead])
