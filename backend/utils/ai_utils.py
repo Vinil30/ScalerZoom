@@ -20,8 +20,22 @@ MEETING_SUMMARY_PROMPT = PromptTemplate(
 
 ACTION_ITEM_PROMPT = PromptTemplate(
     name="action_items_v1",
-    system_prompt="Extract clear action items with owner hints, priority, and status.",
-    user_prompt="Extract action items from this meeting transcript:\n\n{transcript}",
+    system_prompt=(
+        "Extract clear meeting action items. Return strict JSON only with this shape: "
+        "{\"action_items\":[{\"action_text\":\"...\",\"assigned_to\":\"name or null\","
+        "\"priority\":\"low|medium|high|urgent\",\"status\":\"open\"}]}."
+    ),
+    user_prompt="Extract tasks, owners, deadlines if mentioned, and priorities from this transcript:\n\n{transcript}",
+)
+
+
+TRANSCRIPT_INSIGHTS_PROMPT = PromptTemplate(
+    name="transcript_insights_v1",
+    system_prompt=(
+        "You are an AI meeting intelligence assistant. Summarize context, decisions, blockers, "
+        "and collaboration signals in concise product-team language."
+    ),
+    user_prompt="Create contextual transcript insights from this meeting transcript:\n\n{transcript}",
 )
 
 

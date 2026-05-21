@@ -42,6 +42,7 @@ def create_meeting(payload: MeetingCreate) -> tuple[dict[str, Any], dict[str, An
 
     meeting_uuid, meeting_code = new_meeting_identity()
     scheduled_start = serialize_datetime(payload.scheduled_start)
+    initial_status = "live" if payload.meeting_type == "instant" else "scheduled"
     meeting_id = queries.create_meeting(
         meeting_uuid=meeting_uuid,
         meeting_code=meeting_code,
@@ -51,6 +52,7 @@ def create_meeting(payload: MeetingCreate) -> tuple[dict[str, Any], dict[str, An
         meeting_type=payload.meeting_type,
         scheduled_start=scheduled_start,
         duration_minutes=payload.duration_minutes,
+        status=initial_status,
     )
 
     expires_at = None
@@ -62,6 +64,22 @@ def create_meeting(payload: MeetingCreate) -> tuple[dict[str, Any], dict[str, An
         build_invite_link(meeting_code, PUBLIC_BASE_URL),
         expires_at,
     )
+
+    if payload.meeting_type == "instant":
+        host = get_user_or_404(payload.host_id)
+        queries.create_participant(
+            meeting_id=meeting_id,
+            user_id=payload.host_id,
+            display_name=host["username"].replace(".", " ").title(),
+            role="host",
+            mic_enabled=True,
+            video_enabled=True,
+        )
+        queries.create_meeting_history(
+            meeting_id=meeting_id,
+            participant_count=1,
+            started_at=now_utc().isoformat(),
+        )
 
     meeting = queries.get_meeting(meeting_id)
     link = queries.get_meeting_link(link_id)

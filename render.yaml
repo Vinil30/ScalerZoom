@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: ai-zoom-clone-backend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PUBLIC_BASE_URL
+        value: https://ai-zoom-clone-backend.onrender.com
+      - key: SQLITE_DB_PATH
+        value: backend/zoom_clone.db

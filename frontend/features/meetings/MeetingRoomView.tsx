@@ -2,29 +2,38 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { Info, Video } from "lucide-react";
+import { Info, ShieldCheck, Video } from "lucide-react";
 import { Button } from "@/components/shared/Button";
+import { LocalMediaTile } from "@/components/meeting/LocalMediaTile";
 import { MeetingControls } from "@/components/meeting/MeetingControls";
 import { ParticipantSidebar } from "@/components/meeting/ParticipantSidebar";
 import { ParticipantTile } from "@/components/meeting/ParticipantTile";
 import { AIActionItemsPanel } from "@/features/ai/AIActionItemsPanel";
 import { AISummaryPanel } from "@/features/ai/AISummaryPanel";
+import { TranscriptSubmissionPanel } from "@/features/ai/TranscriptSubmissionPanel";
 import { TranscriptInsightsPanel } from "@/features/ai/TranscriptInsightsPanel";
+import { useLocalMedia } from "@/hooks/useLocalMedia";
 import { useAIStore } from "@/store/ai_store";
 import { useMeetingStore } from "@/store/meeting_store";
 import { formatMeetingDate } from "@/utils/date";
 
 export function MeetingRoomView({ meetingId }: { meetingId: number | null }) {
-  const { currentMeeting, participants, activeParticipant, fetchMeeting, fetchParticipants } = useMeetingStore();
-  const { fetchTranscripts, hydrateDemoActionItems } = useAIStore();
+  const { currentMeeting, participants, activeParticipant, fetchMeeting, fetchParticipants, restoreParticipant } = useMeetingStore();
+  const { fetchAIState } = useAIStore();
+  const localMedia = useLocalMedia();
 
   useEffect(() => {
     if (!meetingId) return;
+    restoreParticipant(meetingId);
     void fetchMeeting(meetingId);
     void fetchParticipants(meetingId);
-    void fetchTranscripts(meetingId);
-    hydrateDemoActionItems(meetingId);
-  }, [fetchMeeting, fetchParticipants, fetchTranscripts, hydrateDemoActionItems, meetingId]);
+    void fetchAIState(meetingId);
+    const interval = window.setInterval(() => {
+      void fetchParticipants(meetingId);
+      void fetchMeeting(meetingId);
+    }, 8000);
+    return () => window.clearInterval(interval);
+  }, [fetchAIState, fetchMeeting, fetchParticipants, meetingId, restoreParticipant]);
 
   if (!meetingId) {
     return (
@@ -44,12 +53,16 @@ export function MeetingRoomView({ meetingId }: { meetingId: number | null }) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <header className="flex min-h-16 items-center justify-between border-b border-slate-800 px-4 sm:px-6">
+      <header className="flex min-h-16 items-center justify-between gap-3 border-b border-slate-800 px-4 sm:px-6">
         <div className="min-w-0">
           <h1 className="truncate text-base font-semibold">{currentMeeting?.title ?? "Meeting room"}</h1>
           <p className="text-xs text-slate-400">
-            {currentMeeting ? `${currentMeeting.meeting_code} · ${formatMeetingDate(currentMeeting.scheduled_start)}` : "Loading meeting details"}
+            {currentMeeting ? `${currentMeeting.meeting_code} | ${formatMeetingDate(currentMeeting.scheduled_start)}` : "Loading meeting details"}
           </p>
+        </div>
+        <div className="hidden items-center gap-2 rounded-full border border-slate-800 bg-slate-900 px-3 py-1 text-xs text-slate-300 md:flex">
+          <ShieldCheck className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+          Local media preview
         </div>
         <Link href="/dashboard">
           <Button variant="secondary" className="border-slate-700 bg-slate-900 text-white hover:bg-slate-800" icon={<Video className="h-4 w-4" aria-hidden="true" />}>
@@ -61,9 +74,22 @@ export function MeetingRoomView({ meetingId }: { meetingId: number | null }) {
       <main className="flex min-h-[calc(100vh-64px)]">
         <section className="flex min-w-0 flex-1 flex-col">
           <div className="grid flex-1 gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
-            {visibleParticipants.map((participant) => (
-              <ParticipantTile key={participant.id} participant={participant} isLocal={participant.id === activeParticipant?.id} />
-            ))}
+            {visibleParticipants.map((participant) =>
+              participant.id === activeParticipant?.id ? (
+                <LocalMediaTile
+                  key={participant.id}
+                  participant={participant}
+                  stream={localMedia.stream}
+                  cameraEnabled={localMedia.cameraEnabled && participant.video_enabled}
+                  micEnabled={localMedia.micEnabled && participant.mic_enabled}
+                  permissionError={localMedia.permissionError}
+                  requesting={localMedia.requesting}
+                  onRequestMedia={() => void localMedia.requestMedia()}
+                />
+              ) : (
+                <ParticipantTile key={participant.id} participant={participant} />
+              ),
+            )}
             {visibleParticipants.length === 0 && (
               <div className="col-span-full grid place-items-center rounded-lg border border-dashed border-slate-700 bg-slate-900 p-10 text-center">
                 <div>
@@ -74,15 +100,16 @@ export function MeetingRoomView({ meetingId }: { meetingId: number | null }) {
               </div>
             )}
           </div>
-          <MeetingControls />
+          <MeetingControls onMicChanged={localMedia.setMicEnabled} onCameraChanged={localMedia.setCameraEnabled} />
         </section>
         <ParticipantSidebar participants={visibleParticipants} />
       </main>
 
       <section className="bg-zoom-surface text-zoom-ink">
         <div className="page-container grid gap-5 lg:grid-cols-3">
+          <TranscriptSubmissionPanel meetingId={meetingId} />
           <AISummaryPanel meetingId={meetingId} />
-          <AIActionItemsPanel />
+          <AIActionItemsPanel meetingId={meetingId} />
           <TranscriptInsightsPanel />
         </div>
       </section>

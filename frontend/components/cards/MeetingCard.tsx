@@ -21,6 +21,9 @@ export function MeetingCard({ meeting }: { meeting: Meeting }) {
         </span>
         <span className="inline-flex items-center gap-1.5">
           <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />
+          {meeting.participant_count} participants
+        </span>
+        <span className="inline-flex items-center gap-1.5">
           Code {meeting.meeting_code}
         </span>
       </div>

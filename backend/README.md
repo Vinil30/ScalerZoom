@@ -109,8 +109,12 @@ Dashboard:
 AI:
 
 - `POST /api/v1/ai/transcripts`
+- `POST /api/v1/ai/transcripts/process`
 - `GET /api/v1/ai/meetings/{meeting_id}/transcripts`
+- `GET /api/v1/ai/meetings/{meeting_id}/summaries`
 - `POST /api/v1/ai/summaries/generate`
+- `GET /api/v1/ai/meetings/{meeting_id}/action-items`
+- `POST /api/v1/ai/action-items/generate`
 - `POST /api/v1/ai/action-items`
 
 ## Database Design
@@ -144,3 +148,5 @@ The AI layer is intentionally lightweight:
 - transcript cleanup lives in `utils/transcript_utils.py`
 
 The frontend can already call transcript and summary endpoints, while real provider use can be enabled through `.env`.
+
+Phase 3 adds an end-to-end transcript processing endpoint. It stores the submitted transcript, generates a summary, extracts action items, and returns all persisted artifacts in one response. If OpenAI or Groq keys are configured, those providers are used; otherwise the app falls back to local meeting-intelligence heuristics so the workflow remains demoable.

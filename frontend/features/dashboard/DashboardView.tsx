@@ -8,11 +8,13 @@ import { QuickActionGrid } from "@/components/dashboard/QuickActionGrid";
 import { DEMO_HOST_ID } from "@/lib/demo-user";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useMeetingStore } from "@/store/meeting_store";
+import { useToastStore } from "@/store/toast_store";
 
 export function DashboardView() {
   const router = useRouter();
   const { overview, loading, error } = useDashboardData();
   const { createMeeting } = useMeetingStore();
+  const { pushToast } = useToastStore();
 
   async function handleNewMeeting() {
     const meeting = await createMeeting({
@@ -22,7 +24,10 @@ export function DashboardView() {
       meeting_type: "instant",
       duration_minutes: 30,
     });
-    if (meeting) router.push(`/meeting?meetingId=${meeting.id}`);
+    if (meeting) {
+      pushToast({ kind: "success", title: "Instant meeting started", description: `Invite code ${meeting.meeting_code}` });
+      router.push(`/meeting?meetingId=${meeting.id}`);
+    }
   }
 
   return (

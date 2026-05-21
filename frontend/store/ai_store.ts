@@ -7,60 +7,100 @@ import type { ActionItem, Summary, Transcript } from "@/types/api";
 interface AIState {
   transcripts: Transcript[];
   summary: Summary | null;
+  summaries: Summary[];
   actionItems: ActionItem[];
   loading: boolean;
+  processing: boolean;
   error: string | null;
+  fetchAIState: (meetingId: number) => Promise<void>;
   fetchTranscripts: (meetingId: number) => Promise<void>;
-  generateSummary: (meetingId: number) => Promise<void>;
-  hydrateDemoActionItems: (meetingId: number) => void;
+  fetchSummaries: (meetingId: number) => Promise<void>;
+  fetchActionItems: (meetingId: number) => Promise<void>;
+  generateSummary: (meetingId: number) => Promise<Summary | null>;
+  generateActionItems: (meetingId: number) => Promise<ActionItem[]>;
+  processTranscript: (meetingId: number, transcriptText: string) => Promise<boolean>;
 }
 
-export const useAIStore = create<AIState>((set) => ({
+export const useAIStore = create<AIState>((set, get) => ({
   transcripts: [],
   summary: null,
+  summaries: [],
   actionItems: [],
   loading: false,
+  processing: false,
   error: null,
-  fetchTranscripts: async (meetingId) => {
+  fetchAIState: async (meetingId) => {
     set({ loading: true, error: null });
+    await Promise.all([get().fetchTranscripts(meetingId), get().fetchSummaries(meetingId), get().fetchActionItems(meetingId)]);
+    set({ loading: false });
+  },
+  fetchTranscripts: async (meetingId) => {
     try {
       const transcripts = await aiService.listTranscripts(meetingId);
-      set({ transcripts, loading: false });
+      set({ transcripts });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Unable to load transcripts.", loading: false });
+      set({ error: error instanceof Error ? error.message : "Unable to load transcripts." });
+    }
+  },
+  fetchSummaries: async (meetingId) => {
+    try {
+      const summaries = await aiService.listSummaries(meetingId);
+      set({ summaries, summary: summaries[0] ?? null });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Unable to load AI summaries." });
+    }
+  },
+  fetchActionItems: async (meetingId) => {
+    try {
+      const actionItems = await aiService.listActionItems(meetingId);
+      set({ actionItems });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Unable to load action items." });
     }
   },
   generateSummary: async (meetingId) => {
-    set({ loading: true, error: null });
+    set({ processing: true, error: null });
     try {
       const summary = await aiService.generateSummary(meetingId);
-      set({ summary, loading: false });
+      set((state) => ({ summary, summaries: [summary, ...state.summaries], processing: false }));
+      return summary;
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Unable to generate summary.", loading: false });
+      set({ error: error instanceof Error ? error.message : "Unable to generate summary.", processing: false });
+      return null;
     }
   },
-  hydrateDemoActionItems: (meetingId) => {
-    set({
-      actionItems: [
-        {
-          id: 1,
-          meeting_id: meetingId,
-          action_text: "Confirm recording pipeline ownership before the next sync.",
-          assigned_to: "Maya Raman",
-          priority: "high",
-          status: "open",
-          generated_at: new Date().toISOString(),
-        },
-        {
-          id: 2,
-          meeting_id: meetingId,
-          action_text: "Prepare transcript quality metrics for dashboard review.",
-          assigned_to: "Arjun Dev",
-          priority: "medium",
-          status: "in_progress",
-          generated_at: new Date().toISOString(),
-        },
-      ],
-    });
+  generateActionItems: async (meetingId) => {
+    set({ processing: true, error: null });
+    try {
+      const generated = await aiService.generateActionItems(meetingId);
+      set((state) => ({ actionItems: [...generated, ...state.actionItems], processing: false }));
+      return generated;
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Unable to generate action items.", processing: false });
+      return [];
+    }
+  },
+  processTranscript: async (meetingId, transcriptText) => {
+    set({ processing: true, error: null });
+    try {
+      const result = await aiService.processTranscript({
+        meeting_id: meetingId,
+        transcript_text: transcriptText,
+        language: "en",
+        source_model: "manual-live-notes",
+        provider: "mock",
+      });
+      set((state) => ({
+        transcripts: [result.transcript, ...state.transcripts],
+        summary: result.summary,
+        summaries: [result.summary, ...state.summaries],
+        actionItems: [...result.action_items, ...state.actionItems],
+        processing: false,
+      }));
+      return true;
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Unable to process transcript.", processing: false });
+      return false;
+    }
   },
 }));

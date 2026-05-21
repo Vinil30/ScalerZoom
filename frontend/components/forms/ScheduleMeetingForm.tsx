@@ -6,10 +6,12 @@ import { CalendarPlus, Copy, ExternalLink } from "lucide-react";
 import { Button } from "@/components/shared/Button";
 import { DEMO_HOST_ID } from "@/lib/demo-user";
 import { useMeetingStore } from "@/store/meeting_store";
+import { useToastStore } from "@/store/toast_store";
 import { toDatetimeLocal } from "@/utils/date";
 
 export function ScheduleMeetingForm() {
   const { scheduleMeeting, createdMeeting, loading, error } = useMeetingStore();
+  const { pushToast } = useToastStore();
   const [title, setTitle] = useState("Product design review");
   const [description, setDescription] = useState("Review meeting flow, AI recap surface, and participant experience.");
   const [scheduledStart, setScheduledStart] = useState(toDatetimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000)));
@@ -28,7 +30,7 @@ export function ScheduleMeetingForm() {
       setLocalError("Meeting title should be at least 3 characters.");
       return;
     }
-    await scheduleMeeting({
+    const meeting = await scheduleMeeting({
       host_id: DEMO_HOST_ID,
       title: title.trim(),
       description: description.trim(),
@@ -36,6 +38,13 @@ export function ScheduleMeetingForm() {
       duration_minutes: Number(duration),
       meeting_type: "scheduled",
     });
+    if (meeting) {
+      pushToast({
+        kind: "success",
+        title: "Meeting scheduled",
+        description: `${meeting.title} is now visible on the dashboard.`,
+      });
+    }
   }
 
   return (
@@ -101,7 +110,16 @@ export function ScheduleMeetingForm() {
           {createdMeeting && <p className="mt-2 text-xs text-slate-500">Code {createdMeeting.meeting_code}</p>}
         </div>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row lg:flex-col">
-          <Button type="button" variant="secondary" icon={<Copy className="h-4 w-4" aria-hidden="true" />}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              if (!createdMeeting?.invite_link) return;
+              void navigator.clipboard.writeText(createdMeeting.invite_link);
+              pushToast({ kind: "success", title: "Invite link copied" });
+            }}
+            icon={<Copy className="h-4 w-4" aria-hidden="true" />}
+          >
             Copy link
           </Button>
           {createdMeeting && (

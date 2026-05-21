@@ -4,7 +4,13 @@ import { LogOut, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/shared/Button";
 import { useMeetingStore } from "@/store/meeting_store";
 
-export function MeetingControls() {
+export function MeetingControls({
+  onMicChanged,
+  onCameraChanged,
+}: {
+  onMicChanged?: (enabled: boolean) => void;
+  onCameraChanged?: (enabled: boolean) => void;
+}) {
   const { activeParticipant, toggleMic, toggleCamera, leaveMeeting } = useMeetingStore();
   const micEnabled = activeParticipant?.mic_enabled ?? true;
   const videoEnabled = activeParticipant?.video_enabled ?? true;
@@ -14,7 +20,10 @@ export function MeetingControls() {
       <Button
         variant="secondary"
         className="border-slate-700 bg-slate-900 text-white hover:bg-slate-800"
-        onClick={() => void toggleMic()}
+        onClick={() => {
+          onMicChanged?.(!micEnabled);
+          void toggleMic();
+        }}
         icon={micEnabled ? <Mic className="h-4 w-4" aria-hidden="true" /> : <MicOff className="h-4 w-4" aria-hidden="true" />}
       >
         {micEnabled ? "Mute" : "Unmute"}
@@ -22,7 +31,10 @@ export function MeetingControls() {
       <Button
         variant="secondary"
         className="border-slate-700 bg-slate-900 text-white hover:bg-slate-800"
-        onClick={() => void toggleCamera()}
+        onClick={() => {
+          onCameraChanged?.(!videoEnabled);
+          void toggleCamera();
+        }}
         icon={videoEnabled ? <Video className="h-4 w-4" aria-hidden="true" /> : <VideoOff className="h-4 w-4" aria-hidden="true" />}
       >
         {videoEnabled ? "Stop video" : "Start video"}

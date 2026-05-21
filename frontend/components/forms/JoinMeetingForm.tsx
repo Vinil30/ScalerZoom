@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
 import { Button } from "@/components/shared/Button";
 import { useMeetingStore } from "@/store/meeting_store";
+import { useToastStore } from "@/store/toast_store";
 
 function extractMeetingCode(value: string): string {
   const trimmed = value.trim();
@@ -15,6 +16,7 @@ function extractMeetingCode(value: string): string {
 export function JoinMeetingForm() {
   const router = useRouter();
   const { joinMeeting, loading, error } = useMeetingStore();
+  const { pushToast } = useToastStore();
   const [meetingInput, setMeetingInput] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
@@ -44,6 +46,7 @@ export function JoinMeetingForm() {
     });
 
     if (participant) {
+      pushToast({ kind: "success", title: "Joined meeting", description: "Participant state is synced with the backend." });
       router.push(`/meeting?meetingId=${participant.meeting_id}`);
     }
   }

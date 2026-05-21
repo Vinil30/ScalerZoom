@@ -4,8 +4,9 @@ from backend.database.database import db_cursor, execute, fetch_all, fetch_one
 
 
 MEETING_COLUMNS = """
-    id, meeting_uuid, meeting_code, host_id, title, description, meeting_type,
-    scheduled_start, duration_minutes, status, created_at, updated_at
+    m.id, m.meeting_uuid, m.meeting_code, m.host_id, m.title, m.description, m.meeting_type,
+    m.scheduled_start, m.duration_minutes, m.status, m.created_at, m.updated_at,
+    COUNT(p.id) AS participant_count
 """
 
 PARTICIPANT_COLUMNS = """
@@ -40,11 +41,29 @@ def create_user(username: str, email: str, avatar_url: str | None = None) -> int
 
 
 def get_meeting(meeting_id: int) -> dict[str, Any] | None:
-    return fetch_one(f"SELECT {MEETING_COLUMNS} FROM meetings WHERE id = ?", (meeting_id,))
+    return fetch_one(
+        f"""
+        SELECT {MEETING_COLUMNS}
+        FROM meetings m
+        LEFT JOIN participants p ON p.meeting_id = m.id
+        WHERE m.id = ?
+        GROUP BY m.id
+        """,
+        (meeting_id,),
+    )
 
 
 def get_meeting_by_code(meeting_code: str) -> dict[str, Any] | None:
-    return fetch_one(f"SELECT {MEETING_COLUMNS} FROM meetings WHERE meeting_code = ?", (meeting_code,))
+    return fetch_one(
+        f"""
+        SELECT {MEETING_COLUMNS}
+        FROM meetings m
+        LEFT JOIN participants p ON p.meeting_id = m.id
+        WHERE m.meeting_code = ?
+        GROUP BY m.id
+        """,
+        (meeting_code,),
+    )
 
 
 def list_meetings(status_filter: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
@@ -52,9 +71,11 @@ def list_meetings(status_filter: str | None = None, limit: int = 50) -> list[dic
         return fetch_all(
             f"""
             SELECT {MEETING_COLUMNS}
-            FROM meetings
-            WHERE status = ?
-            ORDER BY created_at DESC
+            FROM meetings m
+            LEFT JOIN participants p ON p.meeting_id = m.id
+            WHERE m.status = ?
+            GROUP BY m.id
+            ORDER BY m.created_at DESC
             LIMIT ?
             """,
             (status_filter, limit),
@@ -62,8 +83,10 @@ def list_meetings(status_filter: str | None = None, limit: int = 50) -> list[dic
     return fetch_all(
         f"""
         SELECT {MEETING_COLUMNS}
-        FROM meetings
-        ORDER BY created_at DESC
+        FROM meetings m
+        LEFT JOIN participants p ON p.meeting_id = m.id
+        GROUP BY m.id
+        ORDER BY m.created_at DESC
         LIMIT ?
         """,
         (limit,),
@@ -74,9 +97,11 @@ def list_upcoming_meetings(limit: int = 5) -> list[dict[str, Any]]:
     return fetch_all(
         f"""
         SELECT {MEETING_COLUMNS}
-        FROM meetings
-        WHERE status = 'scheduled'
-        ORDER BY scheduled_start ASC
+        FROM meetings m
+        LEFT JOIN participants p ON p.meeting_id = m.id
+        WHERE m.status = 'scheduled'
+        GROUP BY m.id
+        ORDER BY m.scheduled_start ASC
         LIMIT ?
         """,
         (limit,),
@@ -339,6 +364,31 @@ def get_summary(summary_id: int) -> dict[str, Any] | None:
     )
 
 
+def list_summaries(meeting_id: int) -> list[dict[str, Any]]:
+    return fetch_all(
+        """
+        SELECT id, meeting_id, generated_summary, generated_by_model, created_at
+        FROM ai_meeting_summaries
+        WHERE meeting_id = ?
+        ORDER BY created_at DESC, id DESC
+        """,
+        (meeting_id,),
+    )
+
+
+def get_latest_summary(meeting_id: int) -> dict[str, Any] | None:
+    return fetch_one(
+        """
+        SELECT id, meeting_id, generated_summary, generated_by_model, created_at
+        FROM ai_meeting_summaries
+        WHERE meeting_id = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+        """,
+        (meeting_id,),
+    )
+
+
 def create_action_item(
     *,
     meeting_id: int,
@@ -364,6 +414,26 @@ def get_action_item(action_item_id: int) -> dict[str, Any] | None:
         WHERE id = ?
         """,
         (action_item_id,),
+    )
+
+
+def list_action_items(meeting_id: int) -> list[dict[str, Any]]:
+    return fetch_all(
+        """
+        SELECT id, meeting_id, action_text, assigned_to, priority, status, generated_at
+        FROM ai_action_items
+        WHERE meeting_id = ?
+        ORDER BY
+            CASE priority
+                WHEN 'urgent' THEN 1
+                WHEN 'high' THEN 2
+                WHEN 'medium' THEN 3
+                ELSE 4
+            END,
+            generated_at DESC,
+            id DESC
+        """,
+        (meeting_id,),
     )
 
 

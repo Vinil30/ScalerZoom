@@ -17,6 +17,7 @@ export interface Meeting {
   status: MeetingStatus;
   created_at: string;
   updated_at: string;
+  participant_count: number;
 }
 
 export interface MeetingWithLink extends Meeting {
@@ -90,4 +91,18 @@ export interface JoinMeetingInput {
   role?: ParticipantRole;
   mic_enabled?: boolean;
   video_enabled?: boolean;
+}
+
+export interface TranscriptProcessInput {
+  meeting_id: number;
+  transcript_text: string;
+  language?: string;
+  source_model?: string;
+  provider?: "mock" | "openai" | "groq";
+}
+
+export interface TranscriptProcessResponse {
+  transcript: Transcript;
+  summary: Summary;
+  action_items: ActionItem[];
 }

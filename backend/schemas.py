@@ -62,6 +62,7 @@ class MeetingRead(BaseModel):
     status: MeetingStatus
     created_at: datetime
     updated_at: datetime
+    participant_count: int = 0
 
 
 class MeetingLinkRead(BaseModel):
@@ -135,6 +136,19 @@ class SummaryGenerationRequest(BaseModel):
     provider: Literal["openai", "groq", "mock"] = "mock"
 
 
+class ActionItemGenerationRequest(BaseModel):
+    meeting_id: int
+    provider: Literal["openai", "groq", "mock"] = "mock"
+
+
+class TranscriptProcessRequest(BaseModel):
+    meeting_id: int
+    transcript_text: str = Field(min_length=1)
+    language: str = Field(default="en", min_length=2, max_length=20)
+    source_model: str = Field(default="manual-upload", max_length=100)
+    provider: Literal["openai", "groq", "mock"] = "mock"
+
+
 class SummaryRead(BaseModel):
     id: int
     meeting_id: int
@@ -159,6 +173,12 @@ class ActionItemRead(BaseModel):
     priority: ActionPriority
     status: ActionStatus
     generated_at: datetime
+
+
+class TranscriptProcessResponse(BaseModel):
+    transcript: TranscriptRead
+    summary: SummaryRead
+    action_items: list[ActionItemRead]
 
 
 class DashboardOverview(BaseModel):
