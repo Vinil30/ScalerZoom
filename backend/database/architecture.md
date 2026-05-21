@@ -1,163 +1,142 @@
-# Database Architecture
+# SQL-Based Backend Architecture
 
-## Purpose
+## Why This Backend Uses Direct SQL
 
-This SQLite schema is designed as a normalized backend foundation for an AI-powered Zoom-like collaboration platform. The goal is to model meetings, attendees, scheduling, historical analytics, and AI artifacts without coupling those concepts into one oversized table.
+The backend now uses `sqlite3` and readable SQL instead of a heavy ORM layer.
 
-The schema intentionally separates operational meeting state from analytics and AI outputs. That makes the backend easier to extend later with recordings, chat, billing, teams, calendars, vector search, background jobs, and provider-specific AI metadata.
+That choice is intentional for this assignment:
 
-## Tables
+- The database schema is small enough to understand directly.
+- SQL makes relationships, indexes, and constraints visible during review.
+- The service layer is easier to explain in interviews.
+- There is less framework magic between the API and the database.
+- The project still keeps clean modular boundaries without adding enterprise-style abstraction.
 
-### users
+This is not a downgrade from good architecture. It is a practical architecture: strong schema design, simple query helpers, thin routes, and focused services.
 
-Stores platform identities that can host meetings, join meetings, receive action items, and later belong to organizations or workspaces.
+## File Responsibilities
 
-Key design choices:
+### `schema.sql`
 
-- `email` and `username` are unique and indexed for identity lookup.
-- `avatar_url` is optional because invited guests may not need a complete profile in future phases.
-- `created_at` and `updated_at` support audit-friendly account lifecycle tracking.
+Owns the database structure in plain SQL:
 
-### meetings
+- table definitions
+- foreign keys
+- check constraints
+- unique constraints
+- indexes
+- timestamp defaults
 
-Stores the primary meeting object. It represents both scheduled and instant meetings.
+This file is the first place a reviewer can inspect the data model.
 
-Key design choices:
+### `database.py`
 
-- `meeting_uuid` is a stable external identifier for public APIs, logs, and distributed integrations.
-- `meeting_code` is a short join code optimized for user-facing invite flows.
-- `host_id` points to `users`, preserving ownership and future authorization rules.
-- `meeting_type` and `status` use constrained values to prevent invalid state.
-- `scheduled_start` and `duration_minutes` support calendar-style scheduling and dashboard queries.
+Owns SQLite connection handling:
 
-### participants
+- opens connections
+- enables foreign keys
+- applies the schema
+- exposes small `fetch_one`, `fetch_all`, and `execute` helpers
 
-Tracks the relationship between a person and a meeting session.
+It avoids ORM session lifecycle concepts and keeps database access easy to follow.
 
-Key design choices:
+### `queries.py`
 
-- `meeting_id` is required; a participant record has no meaning without a meeting.
-- `user_id` is nullable so future guest users can join without full account creation.
-- `role` supports host, cohost, participant, and guest behavior.
-- `joined_at` and `left_at` support attendance analytics and session reconstruction.
-- `mic_enabled` and `video_enabled` capture current session state without implementing media streaming yet.
+Centralizes reusable SQL operations:
 
-### meeting_links
+- meeting lookup and creation
+- participant tracking
+- dashboard counts
+- transcript storage
+- summary and action item storage
 
-Stores invite URLs separately from meetings so link behavior can evolve independently.
+Services call these helpers so SQL stays in one database-focused module rather than being scattered through route files.
 
-Key design choices:
+### `seed.py`
 
-- A meeting can have multiple links over time for rotations, expiring invites, or role-specific invite URLs.
-- `expires_at` enables security-friendly invite expiration.
-- The invite link is unique to prevent duplicate join URLs.
+Creates realistic starter data:
 
-### meeting_history
+- sample users
+- upcoming meetings
+- recent meetings
+- live meeting
+- participants
+- meeting history
+- transcript
+- AI summary
+- AI action items
 
-Stores historical runtime data for ended or active sessions.
+## Schema Overview
 
-Key design choices:
+The schema keeps the same production-minded collaboration model:
 
-- Kept separate from `meetings` because the same logical meeting can later support recurring sessions.
-- `participant_count`, `started_at`, `ended_at`, and `total_duration` are analytics-friendly.
-- This table is the right place to grow future metrics like peak participants, reconnect count, recording duration, or network quality.
+- `users`
+- `meetings`
+- `participants`
+- `meeting_links`
+- `meeting_history`
+- `ai_transcripts`
+- `ai_meeting_summaries`
+- `ai_action_items`
 
-### ai_transcripts
-
-Stores transcripts generated or uploaded for a meeting.
-
-Key design choices:
-
-- Multiple transcripts per meeting are supported for retries, language variants, diarization passes, or provider migrations.
-- `language` prepares the system for multilingual meetings.
-- `source_model` records where the transcript came from for auditability and model comparison.
-
-### ai_meeting_summaries
-
-Stores generated meeting summaries.
-
-Key design choices:
-
-- Kept separate from transcripts because summaries are derived artifacts and may be regenerated.
-- `generated_by_model` allows comparison between OpenAI, Groq, mock, and future providers.
-- Multiple summaries per meeting support model upgrades and prompt versioning.
-
-### ai_action_items
-
-Stores AI-generated or manually accepted tasks from a meeting.
-
-Key design choices:
-
-- Action items are meeting-scoped and can later be linked to real users, external project management tools, or notifications.
-- `priority` and `status` are constrained to maintain clean dashboard data.
-- `assigned_to` is intentionally text for Phase 1 so AI output can be stored even when it does not map cleanly to a platform user.
+The tables are normalized around real product concepts. Meeting metadata, attendance, invite links, history, transcripts, summaries, and tasks are stored separately because they change at different times and support different workflows.
 
 ## Indexing Strategy
 
-Indexes are chosen around realistic API access patterns:
+Indexes target the actual API access patterns:
 
-- `users.email` and `users.username` accelerate login and identity lookups.
-- `meetings.meeting_code` supports the join flow.
-- `meetings.host_id + status` supports host dashboards.
-- `meetings.scheduled_start` supports upcoming meeting calendars.
-- `participants.meeting_id + role` supports participant lists and host/cohost checks.
-- `meeting_history.started_at` supports recent meeting analytics.
-- `ai_transcripts.meeting_id + created_at` supports fetching the latest transcript.
-- `ai_meeting_summaries.meeting_id + created_at` supports summary history.
-- `ai_action_items.meeting_id + status` supports dashboard task widgets.
+- `users.email` and `users.username` for identity lookup.
+- `meetings.meeting_code` for the join flow.
+- `meetings.host_id, status` for host dashboards.
+- `meetings.scheduled_start` for upcoming schedules.
+- `participants.meeting_id, role` for room sidebars and host checks.
+- `meeting_history.started_at` for analytics.
+- `ai_transcripts.meeting_id, created_at` for latest transcript reads.
+- `ai_meeting_summaries.meeting_id, created_at` for summary history.
+- `ai_action_items.meeting_id, status` for task panels.
 
-## Scalability Considerations
+## API Flow
 
-SQLite is appropriate for the assignment phase, but the schema follows patterns that transfer cleanly to PostgreSQL:
+Routes stay thin:
 
-- Tables are normalized around clear domain boundaries.
-- Foreign keys and cascades preserve data integrity.
-- Public identifiers use UUID-style values rather than exposing database-only IDs.
-- AI artifacts are append-friendly, which supports async processing and audit trails.
-- Meeting state is separated from participant state and historical analytics.
+```text
+FastAPI route -> service function -> query helper -> SQLite
+```
 
-Future production growth paths:
+The route handles HTTP shape. The service handles business rules. The query module handles SQL.
 
-- Move from SQLite to PostgreSQL with Alembic migrations.
-- Add organizations, teams, and workspace-level authorization.
-- Add background job tables for transcript and summary processing.
-- Add object storage references for recordings.
-- Add vector embeddings for semantic transcript search.
-- Add calendar integration tables for Google Calendar and Outlook.
-
-## AI Integration Architecture
-
-The AI schema is provider-neutral. Transcripts, summaries, and action items are stored as domain artifacts rather than OpenAI-specific objects.
-
-The service layer prepares:
-
-- OpenAI-compatible request wrappers.
-- Groq integration through the OpenAI client with a custom base URL.
-- Centralized prompt templates.
-- Transcript normalization and keyword utilities.
-
-This allows Phase 2 or Phase 3 to add real async AI generation without changing core meeting tables.
+This keeps responsibilities clear without adding unnecessary layers.
 
 ## Scheduling Workflow
 
-The scheduling workflow is:
+1. A host creates or schedules a meeting.
+2. The service generates `meeting_uuid` and `meeting_code`.
+3. SQL inserts the meeting row.
+4. SQL inserts a meeting invite link.
+5. Participants join through the meeting code.
+6. The room can transition to live or ended.
+7. Meeting history records duration and participant count.
+8. Transcripts and AI artifacts attach to the meeting.
 
-1. A host creates a scheduled meeting.
-2. The backend generates `meeting_uuid` and `meeting_code`.
-3. A meeting link is created with an optional expiration time.
-4. Participants join by meeting code.
-5. The meeting transitions from `scheduled` to `live`.
-6. `meeting_history` captures start/end timing and participant count.
-7. Transcripts and AI summaries attach to the meeting after or during the session.
+## AI Integration Architecture
 
-## Why This Is Not A Beginner CRUD Schema
+The AI layer remains provider-ready:
 
-The schema is intentionally built around system behavior:
+- OpenAI wrapper for normal OpenAI calls.
+- Groq wrapper using an OpenAI-compatible base URL.
+- Prompt templates in a utility module.
+- Transcript normalization before storage.
 
-- Meetings are operational records.
-- Participants are session attendance records.
-- Links are invite/security records.
-- History is analytics state.
-- Transcripts, summaries, and action items are AI artifacts.
+The database stores AI outputs as durable product artifacts, not provider-specific implementation details.
 
-That separation makes the backend easier to explain in interviews and easier to evolve in later phases.
+## Scalability Considerations
+
+SQLite is simple and suitable for the assignment, but the schema is portable:
+
+- Foreign keys model real ownership.
+- Cascades keep meeting-owned data consistent.
+- Public UUID/code fields avoid exposing only internal IDs.
+- Append-friendly AI tables support reprocessing and model comparison.
+- Index names and query shapes translate naturally to PostgreSQL later.
+
+A future production migration could move `schema.sql` into Alembic or raw migration files without changing the service API.

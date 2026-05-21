@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.database.database import init_db
-from backend.database.schemas import APIHealth
+from backend.schemas import APIHealth
 from backend.routes import ai_routes, dashboard_routes, meeting_routes, participant_routes, schedule_routes
 
 

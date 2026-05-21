@@ -1,8 +1,6 @@
 # Database Relationships
 
-## Relationship Flow
-
-The platform centers on `users` and `meetings`.
+## Relationship Map
 
 ```text
 users
@@ -18,127 +16,92 @@ meetings
   └── ai_action_items.meeting_id
 ```
 
-## users to meetings
+## users -> meetings
 
-Relationship: one user can host many meetings.
+A user can host many meetings.
 
-Implementation:
+`meetings.host_id` references `users.id` with restricted deletion. That keeps meeting history from accidentally losing its owner.
 
-- `meetings.host_id` references `users.id`.
-- Host deletion is restricted to avoid orphaning important meeting records.
-- This relationship supports future permissions such as "only hosts can start, end, cancel, or invite."
+## users -> participants
 
-## users to participants
+A user can participate in many meetings.
 
-Relationship: one user can participate in many meetings.
+`participants.user_id` is nullable. This supports guest joins while preserving display names. If a user profile is removed later, historical attendance can remain.
 
-Implementation:
+## meetings -> participants
 
-- `participants.user_id` references `users.id`.
-- The foreign key uses `SET NULL` so historical attendance can survive if a user profile is removed.
-- Guest participation is supported by allowing `user_id` to be null while preserving `display_name`.
+A meeting can have many participants.
 
-## meetings to participants
+Participant rows track:
 
-Relationship: one meeting can have many participants.
+- display name
+- role
+- join time
+- leave time
+- mic state
+- video state
 
-Implementation:
+This keeps the meeting room UI and attendance analytics separate from the core meeting record.
 
-- `participants.meeting_id` references `meetings.id`.
-- Deleting a meeting cascades participant rows because participant records are scoped to that meeting.
-- `(meeting_id, user_id)` is unique to prevent duplicate authenticated attendance records.
+## meetings -> meeting_links
 
-Participant tracking logic:
+A meeting can have multiple invite links.
 
-- `joined_at` records session entry time.
-- `left_at` records exit time and remains null while the participant is active.
-- `role` enables host, cohost, participant, and guest behavior.
-- `mic_enabled` and `video_enabled` prepare for real-time state without implementing streaming yet.
+This supports future link rotation, expiration, role-specific links, and security controls without changing the `meetings` table.
 
-## meetings to meeting_links
+## meetings -> meeting_history
 
-Relationship: one meeting can have many invite links.
+A meeting can have many history rows.
 
-Implementation:
+That may look larger than Phase 1 needs, but it keeps the model ready for recurring meetings or restarted sessions. Historical records store participant counts, start times, end times, and duration.
 
-- `meeting_links.meeting_id` references `meetings.id`.
-- Links cascade when their parent meeting is deleted.
-- `expires_at` prepares for rotating links, expiring links, and future security controls.
+## meetings -> ai_transcripts
 
-## meetings to meeting_history
+A meeting can have many transcripts.
 
-Relationship: one meeting can have many history rows.
+This supports:
 
-Implementation:
+- manual uploads
+- provider retries
+- language variants
+- diarization improvements
+- future transcript segmenting
 
-- `meeting_history.meeting_id` references `meetings.id`.
-- Multiple rows allow recurring sessions or restarted meetings later.
-- `participant_count` and `total_duration` support analytics without recalculating from raw participant rows on every dashboard request.
+The latest transcript can be fetched with a simple indexed query.
 
-## meetings to ai_transcripts
+## meetings -> ai_meeting_summaries
 
-Relationship: one meeting can have many transcripts.
+A meeting can have many summaries.
 
-Implementation:
+This allows summaries to be regenerated when prompts or models improve. `generated_by_model` keeps the output explainable.
 
-- `ai_transcripts.meeting_id` references `meetings.id`.
-- Multiple transcripts support different languages, retries, diarization passes, and provider migrations.
-- `source_model` documents whether the transcript came from a manual upload, OpenAI, Groq, Whisper, or a future provider.
+## meetings -> ai_action_items
 
-Transcript architecture:
+A meeting can have many action items.
 
-- Transcript ingestion belongs in the service layer.
-- Raw transcript text is normalized before storage.
-- Derived artifacts such as summaries and action items should reference the meeting, not mutate the original transcript.
+Action items are stored separately because they behave like tasks. They have priority, status, optional assignment text, and their own generated timestamp.
 
-## meetings to ai_meeting_summaries
+## Cascading Rules
 
-Relationship: one meeting can have many AI summaries.
-
-Implementation:
-
-- `ai_meeting_summaries.meeting_id` references `meetings.id`.
-- Multiple summaries support prompt versioning, model comparison, regeneration, and user-approved summary variants.
-- `generated_by_model` preserves audit context.
-
-## meetings to ai_action_items
-
-Relationship: one meeting can have many AI action items.
-
-Implementation:
-
-- `ai_action_items.meeting_id` references `meetings.id`.
-- `priority` and `status` are constrained values for clean dashboard filtering.
-- `assigned_to` remains text in Phase 1 because AI output may refer to people who are not platform users.
-
-## Cascading Behavior
-
-Meeting-owned records cascade:
+Meeting-owned records cascade when a meeting is deleted:
 
 - participants
 - meeting links
 - meeting history
-- AI transcripts
-- AI summaries
-- AI action items
+- transcripts
+- summaries
+- action items
 
-User-owned meeting records do not cascade:
+User-owned records do not cascade through hosted meetings. This protects collaboration history.
 
-- Hosted meetings are protected with restricted deletion semantics.
-- Participant `user_id` can become null while preserving historical attendance.
+## Why The Relationship Design Is Practical
 
-## Future Extensibility
+The schema is easy to explain:
 
-This relationship model can grow into:
+- `meetings` stores the room/schedule.
+- `participants` stores attendance.
+- `meeting_links` stores invites.
+- `meeting_history` stores analytics.
+- AI tables store generated knowledge.
 
-- `organizations` and `organization_members`
-- `meeting_recordings`
-- `chat_messages`
-- `reaction_events`
-- `calendar_events`
-- `meeting_series` for recurring meetings
-- `ai_prompt_runs` for prompt/model metadata
-- `transcript_segments` for speaker-level diarization
-- `embedding_chunks` for semantic search
-
-The current design keeps those additions natural because core concepts already have separate ownership boundaries.
+This is the right amount of structure for a recruiter-facing fullstack project: normalized, readable, and extensible without hiding everything behind ORM relationships.

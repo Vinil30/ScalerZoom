@@ -1,14 +1,13 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 import os
+import sqlite3
+from typing import Any
 
-from fastapi import HTTPException, status
 from dotenv import load_dotenv
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
-from backend.database.models import Meeting, MeetingHistory, MeetingLink, Participant, User
-from backend.database.schemas import JoinMeetingRequest, MeetingCreate, MeetingScheduleCreate, MeetingUpdate, ParticipantUpdate
+from backend.database import queries
+from backend.schemas import JoinMeetingRequest, MeetingCreate, MeetingScheduleCreate, MeetingUpdate, ParticipantUpdate
 from backend.utils.meeting_utils import build_invite_link, new_meeting_identity, now_utc
 from backend.utils.validation_utils import ensure_future_datetime
 
@@ -18,155 +17,171 @@ load_dotenv()
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000")
 
 
-def get_meeting_or_404(db: Session, meeting_id: int) -> Meeting:
-    meeting = db.get(Meeting, meeting_id)
+def serialize_datetime(value: datetime | None) -> str | None:
+    return value.isoformat() if value else None
+
+
+def get_meeting_or_404(meeting_id: int) -> dict[str, Any]:
+    meeting = queries.get_meeting(meeting_id)
     if meeting is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found.")
     return meeting
 
 
-def get_user_or_404(db: Session, user_id: int) -> User:
-    user = db.get(User, user_id)
+def get_user_or_404(user_id: int) -> dict[str, Any]:
+    user = queries.get_user(user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
     return user
 
 
-def create_meeting(db: Session, payload: MeetingCreate) -> tuple[Meeting, MeetingLink]:
-    get_user_or_404(db, payload.host_id)
+def create_meeting(payload: MeetingCreate) -> tuple[dict[str, Any], dict[str, Any]]:
+    get_user_or_404(payload.host_id)
     if payload.meeting_type == "scheduled" and payload.scheduled_start is not None:
         ensure_future_datetime(payload.scheduled_start, "scheduled_start")
 
     meeting_uuid, meeting_code = new_meeting_identity()
-    meeting = Meeting(
+    scheduled_start = serialize_datetime(payload.scheduled_start)
+    meeting_id = queries.create_meeting(
         meeting_uuid=meeting_uuid,
         meeting_code=meeting_code,
         host_id=payload.host_id,
         title=payload.title,
         description=payload.description,
         meeting_type=payload.meeting_type,
-        scheduled_start=payload.scheduled_start,
+        scheduled_start=scheduled_start,
         duration_minutes=payload.duration_minutes,
-        status="scheduled",
     )
-    db.add(meeting)
-    db.flush()
 
-    link = MeetingLink(
-        meeting_id=meeting.id,
-        invite_link=build_invite_link(meeting.meeting_code, PUBLIC_BASE_URL),
-        expires_at=(payload.scheduled_start + timedelta(days=1)) if payload.scheduled_start else None,
+    expires_at = None
+    if payload.scheduled_start:
+        expires_at = (payload.scheduled_start + timedelta(days=1)).isoformat()
+
+    link_id = queries.create_meeting_link(
+        meeting_id,
+        build_invite_link(meeting_code, PUBLIC_BASE_URL),
+        expires_at,
     )
-    db.add(link)
-    db.commit()
-    db.refresh(meeting)
-    db.refresh(link)
+
+    meeting = queries.get_meeting(meeting_id)
+    link = queries.get_meeting_link(link_id)
+    if meeting is None or link is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Meeting creation failed.")
     return meeting, link
 
 
-def schedule_meeting(db: Session, payload: MeetingScheduleCreate) -> tuple[Meeting, MeetingLink]:
+def schedule_meeting(payload: MeetingScheduleCreate) -> tuple[dict[str, Any], dict[str, Any]]:
     ensure_future_datetime(payload.scheduled_start, "scheduled_start")
-    return create_meeting(db, payload)
+    return create_meeting(payload)
 
 
-def list_meetings(db: Session, status_filter: str | None = None, limit: int = 50) -> list[Meeting]:
-    statement = select(Meeting).order_by(Meeting.created_at.desc()).limit(limit)
-    if status_filter:
-        statement = select(Meeting).where(Meeting.status == status_filter).order_by(Meeting.created_at.desc()).limit(limit)
-    return list(db.scalars(statement))
+def list_meetings(status_filter: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+    return queries.list_meetings(status_filter=status_filter, limit=limit)
 
 
-def update_meeting(db: Session, meeting_id: int, payload: MeetingUpdate) -> Meeting:
-    meeting = get_meeting_or_404(db, meeting_id)
+def update_meeting(meeting_id: int, payload: MeetingUpdate) -> dict[str, Any]:
+    get_meeting_or_404(meeting_id)
     update_data = payload.model_dump(exclude_unset=True)
     if "scheduled_start" in update_data and update_data["scheduled_start"] is not None:
         ensure_future_datetime(update_data["scheduled_start"], "scheduled_start")
-    for field, value in update_data.items():
-        setattr(meeting, field, value)
-    db.commit()
-    db.refresh(meeting)
+        update_data["scheduled_start"] = update_data["scheduled_start"].isoformat()
+
+    meeting = queries.update_meeting(meeting_id, update_data)
+    if meeting is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found.")
     return meeting
 
 
-def start_meeting(db: Session, meeting_id: int) -> Meeting:
-    meeting = get_meeting_or_404(db, meeting_id)
-    meeting.status = "live"
-    db.add(MeetingHistory(meeting_id=meeting.id, started_at=now_utc(), participant_count=len(meeting.participants)))
-    db.commit()
-    db.refresh(meeting)
-    return meeting
+def start_meeting(meeting_id: int) -> dict[str, Any]:
+    meeting = get_meeting_or_404(meeting_id)
+    if meeting["status"] == "live":
+        return meeting
+
+    queries.update_meeting(meeting_id, {"status": "live"})
+    queries.create_meeting_history(
+        meeting_id=meeting_id,
+        participant_count=queries.count_participants(meeting_id),
+        started_at=now_utc().isoformat(),
+    )
+    return get_meeting_or_404(meeting_id)
 
 
-def end_meeting(db: Session, meeting_id: int) -> Meeting:
-    meeting = get_meeting_or_404(db, meeting_id)
-    meeting.status = "ended"
-    active_history = db.scalars(
-        select(MeetingHistory)
-        .where(MeetingHistory.meeting_id == meeting.id, MeetingHistory.ended_at.is_(None))
-        .order_by(MeetingHistory.started_at.desc())
-    ).first()
+def end_meeting(meeting_id: int) -> dict[str, Any]:
+    get_meeting_or_404(meeting_id)
     ended_at = now_utc()
+    active_history = queries.get_active_history(meeting_id)
+    participant_count = queries.count_participants(meeting_id)
+
     if active_history:
-        active_history.ended_at = ended_at
-        active_history.participant_count = len(meeting.participants)
-        if active_history.started_at:
-            active_history.total_duration = int((ended_at - active_history.started_at).total_seconds() // 60)
-    for participant in meeting.participants:
-        if participant.left_at is None:
-            participant.left_at = ended_at
-    db.commit()
-    db.refresh(meeting)
-    return meeting
+        total_duration = None
+        if active_history["started_at"]:
+            started_at = datetime.fromisoformat(active_history["started_at"])
+            if started_at.tzinfo is None:
+                started_at = started_at.replace(tzinfo=ended_at.tzinfo)
+            total_duration = int((ended_at - started_at).total_seconds() // 60)
+        queries.close_active_meeting_history(
+            active_history["id"],
+            participant_count,
+            ended_at.isoformat(),
+            total_duration,
+        )
+
+    queries.close_active_participants(meeting_id, ended_at.isoformat())
+    queries.update_meeting(meeting_id, {"status": "ended"})
+    return get_meeting_or_404(meeting_id)
 
 
-def join_meeting(db: Session, payload: JoinMeetingRequest) -> Participant:
-    meeting = db.scalars(select(Meeting).where(Meeting.meeting_code == payload.meeting_code)).first()
+def join_meeting(payload: JoinMeetingRequest) -> dict[str, Any]:
+    meeting = queries.get_meeting_by_code(payload.meeting_code)
     if meeting is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting code not found.")
-    if meeting.status in {"ended", "cancelled"}:
+    if meeting["status"] in {"ended", "cancelled"}:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Meeting is not joinable.")
     if payload.user_id is not None:
-        get_user_or_404(db, payload.user_id)
+        get_user_or_404(payload.user_id)
 
-    participant = Participant(
-        meeting_id=meeting.id,
-        user_id=payload.user_id,
-        display_name=payload.display_name,
-        role=payload.role,
-        mic_enabled=payload.mic_enabled,
-        video_enabled=payload.video_enabled,
-    )
-    db.add(participant)
     try:
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
+        participant_id = queries.create_participant(
+            meeting_id=meeting["id"],
+            user_id=payload.user_id,
+            display_name=payload.display_name,
+            role=payload.role,
+            mic_enabled=payload.mic_enabled,
+            video_enabled=payload.video_enabled,
+        )
+    except sqlite3.IntegrityError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already joined this meeting.") from exc
-    db.refresh(participant)
+
+    participant = queries.get_participant(participant_id)
+    if participant is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Participant creation failed.")
     return participant
 
 
-def list_participants(db: Session, meeting_id: int) -> list[Participant]:
-    get_meeting_or_404(db, meeting_id)
-    return list(db.scalars(select(Participant).where(Participant.meeting_id == meeting_id).order_by(Participant.joined_at)))
+def list_participants(meeting_id: int) -> list[dict[str, Any]]:
+    get_meeting_or_404(meeting_id)
+    return queries.list_participants(meeting_id)
 
 
-def update_participant(db: Session, participant_id: int, payload: ParticipantUpdate) -> Participant:
-    participant = db.get(Participant, participant_id)
+def update_participant(participant_id: int, payload: ParticipantUpdate) -> dict[str, Any]:
+    participant = queries.get_participant(participant_id)
     if participant is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participant not found.")
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(participant, field, value)
-    db.commit()
-    db.refresh(participant)
-    return participant
+
+    updates = payload.model_dump(exclude_unset=True)
+    if "left_at" in updates and updates["left_at"] is not None:
+        updates["left_at"] = updates["left_at"].isoformat()
+    updated = queries.update_participant(participant_id, updates)
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participant not found.")
+    return updated
 
 
-def leave_meeting(db: Session, participant_id: int) -> Participant:
-    participant = db.get(Participant, participant_id)
+def leave_meeting(participant_id: int) -> dict[str, Any]:
+    participant = queries.get_participant(participant_id)
     if participant is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participant not found.")
-    participant.left_at = now_utc()
-    db.commit()
-    db.refresh(participant)
-    return participant
+    updated = queries.update_participant(participant_id, {"left_at": now_utc().isoformat()})
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participant not found.")
+    return updated

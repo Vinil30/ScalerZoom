@@ -1,21 +1,48 @@
 # AI Zoom Clone Backend
 
-Production-oriented FastAPI backend foundation for a scalable AI-powered meeting platform.
+FastAPI backend for an AI-powered Zoom-like meeting platform.
 
-## Phase 1 Scope
+The backend now uses a practical SQL-first architecture:
 
-This phase intentionally focuses on backend architecture only:
+- FastAPI routes
+- Pydantic API schemas
+- SQLite
+- direct `sqlite3` queries
+- readable `schema.sql`
+- lightweight service functions
+- OpenAI/Groq-ready AI service wrappers
 
-- FastAPI API structure
-- SQLite database foundation
-- SQLAlchemy models and relationships
-- Pydantic request/response schemas
-- Service-oriented business logic
-- AI-ready OpenAI/Groq service wrappers
-- Transcript and prompt utilities
-- Seed data and system design documentation
+## Why Direct SQL
 
-Frontend pages and video streaming are intentionally out of scope for this phase.
+The assignment benefits from clear SQL more than heavy ORM abstraction.
+
+Direct SQL makes the database design easy to review and easy to explain:
+
+- tables are visible in `database/schema.sql`
+- relationships are explicit through foreign keys
+- indexes are obvious
+- queries are readable
+- services are short and practical
+
+The result is still modular, but it avoids unnecessary ORM complexity.
+
+## Backend Structure
+
+```text
+backend/
+  main.py
+  schemas.py
+  routes/
+  services/
+  utils/
+  database/
+    database.py
+    schema.sql
+    queries.py
+    seed.py
+    architecture.md
+    relationships.md
+```
 
 ## Setup
 
@@ -27,18 +54,19 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Update `.env` with your keys if you want to test real AI providers.
-
 ## Initialize Database
 
+From the project root:
+
 ```bash
-cd ..
 python -m backend.database.seed
 ```
 
-The seed script creates sample users, upcoming meetings, recent meetings, a live meeting, participants, transcripts, AI summaries, and action items.
+The seed script creates users, meetings, participants, meeting history, transcripts, summaries, and action items.
 
 ## Run API
+
+From the project root:
 
 ```bash
 uvicorn backend.main:app --reload
@@ -52,7 +80,7 @@ API docs:
 
 ## API Overview
 
-Meeting operations:
+Meetings:
 
 - `POST /api/v1/meetings`
 - `GET /api/v1/meetings`
@@ -85,52 +113,34 @@ AI:
 - `POST /api/v1/ai/summaries/generate`
 - `POST /api/v1/ai/action-items`
 
-## Environment Configuration
+## Database Design
 
-`.env.example` documents the expected settings:
-
-- `PUBLIC_BASE_URL` for generated invite links.
-- `OPENAI_API_KEY` and `OPENAI_MODEL` for OpenAI calls.
-- `GROQ_API_KEY`, `GROQ_BASE_URL`, and `GROQ_MODEL` for Groq's OpenAI-compatible API.
-
-The AI routes default to a mock provider for safe local development. Real provider calls are available through the service wrappers.
-
-## Architecture
-
-The backend follows a thin-route architecture:
-
-- `routes/` handles HTTP concerns only.
-- `services/` owns business rules and database mutations.
-- `utils/` provides reusable helpers for IDs, transcript normalization, prompts, and validation.
-- `database/` owns SQLAlchemy models, Pydantic schemas, session handling, seed data, and system design docs.
-
-Read the database design docs:
-
-- `database/architecture.md`
-- `database/relationships.md`
-
-## Database Explanation
-
-The schema uses normalized tables:
+Tables:
 
 - `users`
 - `meetings`
 - `participants`
 - `meeting_links`
 - `meeting_history`
+- `ai_transcripts`
 - `ai_meeting_summaries`
 - `ai_action_items`
-- `ai_transcripts`
 
-The design includes foreign keys, indexes, constraints, timestamps, cascade rules, and append-friendly AI artifacts.
+The schema keeps foreign keys, constraints, indexes, timestamps, UUIDs, meeting codes, and cascade rules.
+
+Read:
+
+- `database/architecture.md`
+- `database/relationships.md`
+- `database/schema.sql`
 
 ## AI Foundation
 
-The AI layer is intentionally prepared but not deeply implemented in Phase 1:
+The AI layer is intentionally lightweight:
 
-- `OpenAIService` wraps standard OpenAI chat completion calls.
+- `OpenAIService` wraps OpenAI chat completions.
 - `GroqService` uses the OpenAI client with Groq's base URL.
-- Prompt templates are centralized in `utils/ai_utils.py`.
-- Transcript utilities normalize text and extract lightweight topic signals.
+- prompt templates live in `utils/ai_utils.py`
+- transcript cleanup lives in `utils/transcript_utils.py`
 
-This makes later phases ready for async summary generation, diarization, semantic search, action item approval, and model comparison.
+The frontend can already call transcript and summary endpoints, while real provider use can be enabled through `.env`.

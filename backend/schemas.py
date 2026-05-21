@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 MeetingType = Literal["instant", "scheduled", "recurring", "webinar"]
@@ -22,8 +22,6 @@ class UserCreate(UserBase):
 
 
 class UserRead(UserBase):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     created_at: datetime
     updated_at: datetime
@@ -52,8 +50,6 @@ class MeetingUpdate(BaseModel):
 
 
 class MeetingRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     meeting_uuid: str
     meeting_code: str
@@ -69,8 +65,6 @@ class MeetingRead(BaseModel):
 
 
 class MeetingLinkRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     meeting_id: int
     invite_link: str
@@ -100,8 +94,6 @@ class ParticipantUpdate(BaseModel):
 
 
 class ParticipantRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     meeting_id: int
     user_id: int | None
@@ -114,8 +106,6 @@ class ParticipantRead(BaseModel):
 
 
 class MeetingHistoryRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     meeting_id: int
     participant_count: int
@@ -132,8 +122,6 @@ class TranscriptCreate(BaseModel):
 
 
 class TranscriptRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     meeting_id: int
     transcript_text: str
@@ -148,8 +136,6 @@ class SummaryGenerationRequest(BaseModel):
 
 
 class SummaryRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     meeting_id: int
     generated_summary: str
@@ -166,8 +152,6 @@ class ActionItemCreate(BaseModel):
 
 
 class ActionItemRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     meeting_id: int
     action_text: str
