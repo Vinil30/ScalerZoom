@@ -4,7 +4,7 @@ from backend.schemas import (
     ActionItemGenerationRequest,
     ActionItemCreate,
     ActionItemRead,
-    TranscriptCreate,
+    TranscriptCreate, 
     TranscriptProcessRequest,
     TranscriptProcessResponse,
     TranscriptRead,
