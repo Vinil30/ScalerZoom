@@ -13,7 +13,7 @@ export const aiService = {
   },
   generateActionItems(meetingId: number, provider: "mock" | "groq" = "mock") {
     return apiPost<ActionItem[], { meeting_id: number; provider: "mock" | "groq" }>("/ai/action-items/generate", {
-      meeting_id: meetingId,
+      meeting_id: meetingId, 
       provider,
     });
   },

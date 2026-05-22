@@ -27,7 +27,7 @@ def list_transcripts(meeting_id: int) -> list[TranscriptRead]:
 
 @router.post("/transcripts/process", response_model=TranscriptProcessResponse, status_code=status.HTTP_201_CREATED)
 def process_transcript(payload: TranscriptProcessRequest) -> TranscriptProcessResponse:
-    return transcript_service.process_transcript(payload)
+    return transcript_service.process_transcript(payload) 
 
 
 @router.get("/meetings/{meeting_id}/action-items", response_model=list[ActionItemRead])
