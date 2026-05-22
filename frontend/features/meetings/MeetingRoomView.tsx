@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { ArrowDown, Info, ShieldCheck, Video } from "lucide-react";
+import { Info, ShieldCheck, Video } from "lucide-react";
 import { Button } from "@/components/shared/Button";
 import { LocalMediaTile } from "@/components/meeting/LocalMediaTile";
 import { MeetingControls } from "@/components/meeting/MeetingControls";
@@ -63,20 +63,11 @@ export function MeetingRoomView({ meetingId }: { meetingId: number | null }) {
           <ShieldCheck className="h-4 w-4 text-emerald-400" aria-hidden="true" />
           Local media preview
         </div>
-        <div className="flex items-center gap-2">
-          <a
-            href="#meeting-intelligence"
-            className="hidden items-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 sm:inline-flex"
-          >
-            <ArrowDown className="h-4 w-4" aria-hidden="true" />
-            AI notes below
-          </a>
-          <Link href="/dashboard">
-            <Button variant="secondary" className="border-slate-700 bg-slate-900 text-white hover:bg-slate-800" icon={<Video className="h-4 w-4" aria-hidden="true" />}>
-              Dashboard
-            </Button>
-          </Link>
-        </div>
+        <Link href="/dashboard">
+          <Button variant="secondary" className="border-slate-700 bg-slate-900 text-white hover:bg-slate-800" icon={<Video className="h-4 w-4" aria-hidden="true" />}>
+            Dashboard
+          </Button>
+        </Link>
       </header>
 
       <main className="flex min-h-[calc(100vh-64px)]">

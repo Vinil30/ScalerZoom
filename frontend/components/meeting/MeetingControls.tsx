@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { ArrowDown, LogOut, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/shared/Button";
 import { useMeetingStore } from "@/store/meeting_store";
 
@@ -39,6 +39,13 @@ export function MeetingControls({
       >
         {videoEnabled ? "Stop video" : "Start video"}
       </Button>
+      <a
+        href="#meeting-intelligence"
+        className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800"
+      >
+        <ArrowDown className="h-4 w-4" aria-hidden="true" />
+        AI notes
+      </a>
       <Button variant="danger" onClick={() => void leaveMeeting()} icon={<LogOut className="h-4 w-4" aria-hidden="true" />}>
         Leave
       </Button>
