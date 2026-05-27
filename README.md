@@ -1,5 +1,6 @@
 # Note for recruiters:
-Please wiat for 1 min while the backend is loading, as I am using free-tier service of Render, it may spin-down after 15 mins of inactivity. So, please wait for a minute and then reload the website for the backend to be loaded.
+Please wait for 1 minute while the backend loads. Since the application is hosted on Render’s free tier, the server may spin down after 15 minutes of inactivity. If that happens, give it about a minute to restart, then reload the website.
+
 
 # AI Zoom Clone
 
