@@ -1,3 +1,6 @@
+# Note for recruiters:
+Please wiat for 1 min while the backend is loading, as I am using free-tier service of Render, it may spin-down after 15 mins of inactivity. So, please wait for a minute and then reload the website for the backend to be loaded.
+
 # AI Zoom Clone
 
 A portfolio-quality AI-powered collaboration platform inspired by Zoom Workplace.
